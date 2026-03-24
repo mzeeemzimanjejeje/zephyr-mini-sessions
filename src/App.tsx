@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Navbar from "./components/Navbar";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 const Home       = lazy(() => import("./pages/Home"));
 const Genres     = lazy(() => import("./pages/Genres"));
@@ -20,17 +21,19 @@ function PageLoader() {
 
 export default function App() {
   return (
-    <BrowserRouter basename={BASE}>
-      <Navbar />
-      <Suspense fallback={<PageLoader />}>
-        <Routes>
-          <Route path="/"              element={<Home />} />
-          <Route path="/title/:id"     element={<DetailPage />} />
-          <Route path="/genres"        element={<Genres />} />
-          <Route path="/genres/:genre" element={<GenrePage />} />
-          <Route path="/search"        element={<Search />} />
-        </Routes>
-      </Suspense>
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter basename={BASE}>
+        <Navbar />
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
+            <Route path="/"              element={<Home />} />
+            <Route path="/title/:id"     element={<DetailPage />} />
+            <Route path="/genres"        element={<Genres />} />
+            <Route path="/genres/:genre" element={<GenrePage />} />
+            <Route path="/search"        element={<Search />} />
+          </Routes>
+        </Suspense>
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 }
