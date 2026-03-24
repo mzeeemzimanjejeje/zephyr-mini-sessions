@@ -1,33 +1,81 @@
+import { useState } from "react";
 import { ContentItem } from "../data/content";
 
 interface Props { item: ContentItem; onClose: () => void; }
 
+const SERVERS = [
+  { label: "Server 1", url: (id: string, type: string) => `https://vidsrc.cc/v2/embed/${type === "Movie" ? "movie" : "tv"}/${id}` },
+  { label: "Server 2", url: (id: string, type: string) => `https://www.2embed.cc/${type === "Movie" ? "embed" : "embedtv"}/${id}` },
+  { label: "Server 3", url: (id: string, type: string) => `https://embed.su/embed/${type === "Movie" ? "movie" : "tv"}/${id}` },
+];
+
 export default function WatchModal({ item, onClose }: Props) {
-  const embedUrl = `https://vidsrc.to/embed/${item.type === "Movie" ? "movie" : "tv"}/${encodeURIComponent(item.title)}`;
+  const [server, setServer] = useState(0);
+
+  if (!item.imdbId) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95" onClick={onClose}>
+        <div className="bg-[#1a1a1a] rounded-xl max-w-md w-full mx-4 p-8 text-center" onClick={e => e.stopPropagation()}>
+          <div className="text-5xl mb-4">🎬</div>
+          <h2 className="text-white font-bold text-xl mb-2">{item.title}</h2>
+          <p className="text-white/50 text-sm mb-6">
+            This title is not yet available for streaming. Check back soon.
+          </p>
+          <button
+            onClick={onClose}
+            className="w-full bg-red-600 hover:bg-red-700 text-white py-2.5 rounded-lg font-semibold transition-colors"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const embedUrl = SERVERS[server].url(item.imdbId, item.type);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95" onClick={onClose}>
       <div className="w-full max-w-5xl mx-4" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3 px-1">
-          <h2 className="text-white font-bold text-lg">{item.title}</h2>
-          <button onClick={onClose} className="text-white/60 hover:text-white transition-colors">
+          <h2 className="text-white font-bold text-lg truncate pr-4">{item.title}</h2>
+          <button onClick={onClose} className="text-white/60 hover:text-white flex-shrink-0 transition-colors">
             <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
-        <div className="relative w-full" style={{ paddingBottom: "56.25%" }}>
+
+        <div className="relative w-full bg-black rounded-lg overflow-hidden" style={{ paddingBottom: "56.25%" }}>
           <iframe
+            key={`${item.id}-${server}`}
             src={embedUrl}
-            className="absolute inset-0 w-full h-full rounded-lg"
+            className="absolute inset-0 w-full h-full"
             allowFullScreen
-            allow="autoplay; fullscreen"
+            allow="autoplay; fullscreen; picture-in-picture"
             title={item.title}
+            referrerPolicy="no-referrer"
           />
         </div>
-        <p className="text-white/30 text-xs text-center mt-3">
-          If the player doesn't load, try refreshing or a different title.
-        </p>
+
+        <div className="flex items-center justify-between mt-3 px-1">
+          <div className="flex gap-2">
+            {SERVERS.map((s, i) => (
+              <button
+                key={i}
+                onClick={() => setServer(i)}
+                className={`text-xs px-3 py-1.5 rounded font-medium transition-colors ${
+                  server === i
+                    ? "bg-red-600 text-white"
+                    : "bg-white/10 text-white/60 hover:bg-white/20 hover:text-white"
+                }`}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+          <p className="text-white/30 text-xs">If player is blank, try another server</p>
+        </div>
       </div>
     </div>
   );
