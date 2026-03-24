@@ -2,7 +2,7 @@ import Hero from "../components/Hero";
 import GenreBar from "../components/GenreBar";
 import ContentRow from "../components/ContentRow";
 import ContinueWatching from "../components/ContinueWatching";
-import { hero, trending, hotAndPopular, movies, series } from "../data/content";
+import { hero, trending, hotAndPopular, popularMovies, topSeries, movies, series } from "../data/content";
 import { useWatchHistory } from "../hooks/useWatchHistory";
 import { useRecommendations } from "../hooks/useRecommendations";
 
@@ -17,10 +17,8 @@ export default function Home() {
       <div className="-mt-8 relative z-10">
         <GenreBar />
 
-        {/* Continue Watching — only shows if user has watched something */}
         <ContinueWatching history={history} onRemove={removeEntry} />
 
-        {/* Recommended For You — only shows when history exists */}
         {history.length > 0 && (
           <ContentRow
             title="Recommended For You"
@@ -44,14 +42,28 @@ export default function Home() {
         />
 
         <ContentRow
-          title="Movies"
-          subtitle="Films"
+          title="Popular Movies"
+          subtitle="All-time hits & new releases"
+          badge="Top Rated"
+          items={popularMovies}
+        />
+
+        <ContentRow
+          title="Top TV Series"
+          subtitle="Binge-worthy shows"
+          badge="Fan Favourites"
+          items={topSeries}
+        />
+
+        <ContentRow
+          title="All Movies"
+          subtitle="Complete film library"
           items={movies}
         />
 
         <ContentRow
-          title="TV Series"
-          subtitle="Shows"
+          title="All Series"
+          subtitle="Complete show library"
           items={series}
         />
       </div>
