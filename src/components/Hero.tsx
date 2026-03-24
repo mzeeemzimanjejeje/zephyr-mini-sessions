@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useState, memo } from "react";
 import { ContentItem } from "../data/content";
 import WatchModal from "./WatchModal";
 
 interface Props { item: ContentItem; }
 
-export default function Hero({ item }: Props) {
+const Hero = memo(function Hero({ item }: Props) {
   const [showModal, setShowModal] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
 
@@ -14,6 +14,9 @@ export default function Hero({ item }: Props) {
         <img
           src={item.image}
           alt={item.title}
+          fetchPriority="high"
+          loading="eager"
+          decoding="sync"
           className="absolute inset-0 w-full h-full object-cover object-top"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/50 to-transparent" />
@@ -73,7 +76,7 @@ export default function Hero({ item }: Props) {
       {showInfo && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80" onClick={() => setShowInfo(false)}>
           <div className="bg-[#1a1a1a] rounded-xl max-w-md w-full mx-4 overflow-hidden" onClick={e => e.stopPropagation()}>
-            <img src={item.image} alt={item.title} className="w-full h-52 object-cover" />
+            <img src={item.image} alt={item.title} loading="lazy" decoding="async" className="w-full h-52 object-cover" />
             <div className="p-6">
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-xs bg-red-600 text-white px-2 py-0.5 rounded font-bold">{item.type.toUpperCase()}</span>
@@ -93,4 +96,6 @@ export default function Hero({ item }: Props) {
       )}
     </>
   );
-}
+});
+
+export default Hero;

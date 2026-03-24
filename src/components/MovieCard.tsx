@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useState, memo } from "react";
 import { ContentItem } from "../data/content";
 import WatchModal from "./WatchModal";
 
 interface Props { item: ContentItem; }
 
-export default function MovieCard({ item }: Props) {
+const MovieCard = memo(function MovieCard({ item }: Props) {
   const [showModal, setShowModal] = useState(false);
   const [hovered, setHovered] = useState(false);
 
@@ -19,8 +19,9 @@ export default function MovieCard({ item }: Props) {
           <img
             src={item.image}
             alt={item.title}
-            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
             loading="lazy"
+            decoding="async"
+            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
           />
 
           <div className={`absolute inset-0 bg-black/60 flex flex-col justify-end p-2.5 transition-opacity duration-200 ${hovered ? "opacity-100" : "opacity-0"}`}>
@@ -59,4 +60,6 @@ export default function MovieCard({ item }: Props) {
       {showModal && <WatchModal item={item} onClose={() => setShowModal(false)} />}
     </>
   );
-}
+});
+
+export default MovieCard;

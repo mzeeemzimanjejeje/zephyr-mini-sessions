@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, memo } from "react";
 import { ContentItem } from "../data/content";
 import MovieCard from "./MovieCard";
 
@@ -9,7 +9,7 @@ interface Props {
   items: ContentItem[];
 }
 
-export default function ContentRow({ title, subtitle, badge, items }: Props) {
+const ContentRow = memo(function ContentRow({ title, subtitle, badge, items }: Props) {
   const rowRef = useRef<HTMLDivElement>(null);
 
   const scroll = (dir: "left" | "right") => {
@@ -33,6 +33,7 @@ export default function ContentRow({ title, subtitle, badge, items }: Props) {
       <div className="relative group">
         <button
           onClick={() => scroll("left")}
+          aria-label="Scroll left"
           className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-black/80 hover:bg-black text-white rounded-full w-8 h-8 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg -translate-x-3"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -42,7 +43,7 @@ export default function ContentRow({ title, subtitle, badge, items }: Props) {
 
         <div
           ref={rowRef}
-          className="flex gap-3 overflow-x-auto scrollbar-hide pb-2"
+          className="flex gap-3 overflow-x-auto pb-2"
           style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
         >
           {items.map(item => (
@@ -52,6 +53,7 @@ export default function ContentRow({ title, subtitle, badge, items }: Props) {
 
         <button
           onClick={() => scroll("right")}
+          aria-label="Scroll right"
           className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-black/80 hover:bg-black text-white rounded-full w-8 h-8 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg translate-x-3"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -61,4 +63,6 @@ export default function ContentRow({ title, subtitle, badge, items }: Props) {
       </div>
     </section>
   );
-}
+});
+
+export default ContentRow;
