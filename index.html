@@ -6,16 +6,30 @@
     <title>Courtney's ENT</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 
-    <!-- Preconnect to image CDN so images load instantly -->
+    <!-- Image CDN: preconnect so every card image loads instantly -->
     <link rel="preconnect" href="https://pbcdnw.aoneroom.com" crossorigin />
     <link rel="dns-prefetch" href="https://pbcdnw.aoneroom.com" />
+    <link rel="preconnect" href="https://images.metahub.space" crossorigin />
+    <link rel="dns-prefetch" href="https://images.metahub.space" />
+
+    <!-- Video sources: pre-dial all 3 servers so Play has zero startup delay -->
+    <link rel="preconnect" href="https://vidsrc.xyz" crossorigin />
+    <link rel="dns-prefetch" href="https://vidsrc.xyz" />
+    <link rel="preconnect" href="https://vidsrc.to" crossorigin />
+    <link rel="dns-prefetch" href="https://vidsrc.to" />
+    <link rel="dns-prefetch" href="https://vidsrc.mov" />
 
     <!-- Preload the hero image (above the fold — highest priority) -->
     <link
       rel="preload"
       as="image"
       href="https://pbcdnw.aoneroom.com/image/2026/03/18/b9bffdc2304fc634195192d7464a6d44.jpg"
+      fetchpriority="high"
     />
+
+    <!-- PWA theme -->
+    <meta name="theme-color" content="#141414" />
+    <meta name="description" content="Courtney's ENT — Stream movies and series" />
   </head>
   <body>
     <div id="root"></div>

@@ -1,5 +1,5 @@
-import { useState, memo } from "react";
-import { Link } from "react-router-dom";
+import { useState, memo, useCallback, useRef } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { ContentItem } from "../data/content";
 import WatchModal from "./WatchModal";
 
@@ -8,38 +8,72 @@ interface Props { item: ContentItem; }
 const MovieCard = memo(function MovieCard({ item }: Props) {
   const [showModal, setShowModal] = useState(false);
   const [hovered, setHovered] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(false);
+  const prefetchedRef = useRef(false);
+  const navigate = useNavigate();
+
+  // Hover prefetch: when mouse enters the card, preload the detail page
+  // (same technique YouTube uses to preload video pages on thumbnail hover)
+  const handleMouseEnter = useCallback(() => {
+    setHovered(true);
+    if (!prefetchedRef.current) {
+      prefetchedRef.current = true;
+      const link = document.createElement("link");
+      link.rel = "prefetch";
+      link.href = `/title/${item.id}`;
+      document.head.appendChild(link);
+    }
+  }, [item.id]);
+
+  const handleWatch = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setShowModal(true);
+  }, []);
 
   return (
     <>
       <div
         className="relative flex-shrink-0 w-36 md:w-44 cursor-pointer group"
-        onMouseEnter={() => setHovered(true)}
+        onMouseEnter={handleMouseEnter}
         onMouseLeave={() => setHovered(false)}
       >
         <Link to={`/title/${item.id}`}>
           <div className="relative overflow-hidden rounded-lg aspect-[2/3] bg-[#1a1a1a]">
+
+            {/* Skeleton shimmer — shows while image loads (Netflix/YouTube style) */}
+            {!imgLoaded && (
+              <div className="absolute inset-0 bg-[#1a1a1a] overflow-hidden">
+                <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/5 to-transparent" />
+              </div>
+            )}
+
             <img
               src={item.image}
               alt={item.title}
               loading="lazy"
               decoding="async"
-              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+              onLoad={() => setImgLoaded(true)}
+              className={`w-full h-full object-cover transition-all duration-300 group-hover:scale-105 ${imgLoaded ? "opacity-100" : "opacity-0"}`}
             />
 
             <div className={`absolute inset-0 bg-black/60 flex flex-col justify-end p-2.5 transition-opacity duration-200 ${hovered ? "opacity-100" : "opacity-0"}`}>
               <button
-                onClick={e => { e.preventDefault(); e.stopPropagation(); setShowModal(true); }}
+                onClick={handleWatch}
                 className="w-full bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-1.5 rounded mb-1.5 flex items-center justify-center gap-1 transition-colors"
               >
                 <svg className="w-3 h-3 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
                 Watch
               </button>
-              <div className="w-full bg-white/20 hover:bg-white/30 text-white text-xs font-semibold py-1.5 rounded flex items-center justify-center gap-1 transition-colors">
+              <button
+                onClick={e => { e.preventDefault(); navigate(`/title/${item.id}`); }}
+                className="w-full bg-white/20 hover:bg-white/30 text-white text-xs font-semibold py-1.5 rounded flex items-center justify-center gap-1 transition-colors"
+              >
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 More Info
-              </div>
+              </button>
             </div>
 
             <div className="absolute top-2 left-2">
