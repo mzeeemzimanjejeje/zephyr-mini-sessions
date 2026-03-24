@@ -2,10 +2,11 @@ import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Navbar from "./components/Navbar";
 
-const Home      = lazy(() => import("./pages/Home"));
-const Genres    = lazy(() => import("./pages/Genres"));
-const GenrePage = lazy(() => import("./pages/GenrePage"));
-const Search    = lazy(() => import("./pages/Search"));
+const Home       = lazy(() => import("./pages/Home"));
+const Genres     = lazy(() => import("./pages/Genres"));
+const GenrePage  = lazy(() => import("./pages/GenrePage"));
+const Search     = lazy(() => import("./pages/Search"));
+const DetailPage = lazy(() => import("./pages/DetailPage"));
 
 const BASE = import.meta.env.BASE_URL;
 
@@ -24,6 +25,7 @@ export default function App() {
       <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/"              element={<Home />} />
+          <Route path="/title/:id"     element={<DetailPage />} />
           <Route path="/genres"        element={<Genres />} />
           <Route path="/genres/:genre" element={<GenrePage />} />
           <Route path="/search"        element={<Search />} />

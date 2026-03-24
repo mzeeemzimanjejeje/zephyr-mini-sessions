@@ -1,4 +1,5 @@
 import { useState, memo } from "react";
+import { useNavigate } from "react-router-dom";
 import { ContentItem } from "../data/content";
 import WatchModal from "./WatchModal";
 
@@ -6,7 +7,7 @@ interface Props { item: ContentItem; }
 
 const Hero = memo(function Hero({ item }: Props) {
   const [showModal, setShowModal] = useState(false);
-  const [showInfo, setShowInfo] = useState(false);
+  const navigate = useNavigate();
 
   return (
     <>
@@ -59,7 +60,7 @@ const Hero = memo(function Hero({ item }: Props) {
               Watch Now
             </button>
             <button
-              onClick={() => setShowInfo(true)}
+              onClick={() => navigate(`/title/${item.id}`)}
               className="flex items-center gap-2 bg-white/20 hover:bg-white/30 text-white font-semibold px-6 py-2.5 rounded backdrop-blur-sm transition-colors"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -72,28 +73,6 @@ const Hero = memo(function Hero({ item }: Props) {
       </div>
 
       {showModal && <WatchModal item={item} onClose={() => setShowModal(false)} />}
-
-      {showInfo && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80" onClick={() => setShowInfo(false)}>
-          <div className="bg-[#1a1a1a] rounded-xl max-w-md w-full mx-4 overflow-hidden" onClick={e => e.stopPropagation()}>
-            <img src={item.image} alt={item.title} loading="lazy" decoding="async" className="w-full h-52 object-cover" />
-            <div className="p-6">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-xs bg-red-600 text-white px-2 py-0.5 rounded font-bold">{item.type.toUpperCase()}</span>
-                {item.rating && <span className="text-yellow-400 font-bold">⭐ {item.rating}</span>}
-              </div>
-              <h2 className="text-2xl font-bold text-white mb-1">{item.title}</h2>
-              <p className="text-white/60 text-sm mb-3">{item.year} · {item.country}</p>
-              <div className="flex flex-wrap gap-2">
-                {item.genres.map(g => (
-                  <span key={g} className="text-xs bg-white/10 text-white/80 px-3 py-1 rounded-full">{g}</span>
-                ))}
-              </div>
-              <button onClick={() => setShowInfo(false)} className="mt-5 w-full bg-red-600 hover:bg-red-700 text-white py-2 rounded font-semibold transition-colors">Close</button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 });
