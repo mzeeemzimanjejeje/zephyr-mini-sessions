@@ -19,7 +19,7 @@ export default function Navbar() {
             <path d="M8 5v14l11-7z" />
           </svg>
         </div>
-        <span className="text-white font-bold text-xl tracking-wide">StreamFlixx</span>
+        <span className="text-white font-bold text-xl tracking-wide">Courtney's ENT</span>
       </Link>
 
       <div className="flex items-center gap-4">
