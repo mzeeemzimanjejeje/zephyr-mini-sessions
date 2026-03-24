@@ -50,6 +50,7 @@ export const hotAndPopular: ContentItem[] = [
   { id: 115, title: "Prison Break",                     type: "Series", image: "https://pbcdnw.aoneroom.com/image/2026/01/27/cfed5f62c5b9d25558785fa2b6f099d2.jpg", rating: 8.3, year: 2005, country: "United States",  genres: ["Action","Crime"],                 imdbId: "tt0455275"  },
   { id: 116, title: "Sistas",                           type: "Series", image: "https://pbcdnw.aoneroom.com/image/2026/01/26/00039a0dc9ee53a96d824e487ddceed5.jpg", rating: 5.7, year: 2019, country: "United States",  genres: ["Comedy","Drama"],                 imdbId: "tt7764808"  },
   { id: 117, title: "The Vampire Diaries",              type: "Series", image: "https://pbcdnw.aoneroom.com/image/2026/01/27/cc2e447b636be4a800cedbaccc21b7dc.jpg", rating: 7.7, year: 2009, country: "United States",  genres: ["Drama","Fantasy"],                imdbId: "tt1405406"  },
+  { id: 118, title: "Person of Interest",               type: "Series", image: "https://images.metahub.space/poster/large/tt1839578/img",                              rating: 8.4, year: 2011, country: "United States",  genres: ["Action","Crime","Sci-Fi"],        imdbId: "tt1839578"  },
 ];
 
 export const movies: ContentItem[] = trending.filter(c => c.type === "Movie").concat(
