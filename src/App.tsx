@@ -1,27 +1,22 @@
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
-import NotFound from "./pages/NotFound";
+import Navbar from "./components/Navbar";
+import Home from "./pages/Home";
+import Genres from "./pages/Genres";
+import GenrePage from "./pages/GenrePage";
+import Search from "./pages/Search";
 
-const queryClient = new QueryClient();
+const BASE = import.meta.env.BASE_URL;
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
-
-export default App;
+export default function App() {
+  return (
+    <BrowserRouter basename={BASE}>
+      <Navbar />
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/genres" element={<Genres />} />
+        <Route path="/genres/:genre" element={<GenrePage />} />
+        <Route path="/search" element={<Search />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}

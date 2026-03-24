@@ -1,70 +1,62 @@
-import { useState } from 'react';
-import { Stream } from '@/types/stream';
-import { Card } from '@/components/ui/card';
-import { Play } from 'lucide-react';
+import { useState } from "react";
+import { ContentItem } from "../data/content";
+import WatchModal from "./WatchModal";
 
-interface MovieCardProps {
-  stream: Stream;
-  onPlay: (stream: Stream) => void;
-}
+interface Props { item: ContentItem; }
 
-export const MovieCard = ({ stream, onPlay }: MovieCardProps) => {
-  const [imageLoaded, setImageLoaded] = useState(false);
-  const [imageError, setImageError] = useState(false);
+export default function MovieCard({ item }: Props) {
+  const [showModal, setShowModal] = useState(false);
+  const [hovered, setHovered] = useState(false);
 
   return (
-    <Card 
-      className="group relative overflow-hidden bg-netflix-card border-netflix-hover cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-hover animate-fade-in"
-      onClick={() => onPlay(stream)}
-    >
-      <div className="aspect-[2/3] relative">
-        {/* Loading skeleton */}
-        {!imageLoaded && !imageError && (
-          <div className="absolute inset-0 bg-netflix-hover animate-pulse">
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer" />
-          </div>
-        )}
-        
-        {/* Movie image */}
-        {!imageError && (
+    <>
+      <div
+        className="relative flex-shrink-0 w-36 md:w-44 cursor-pointer group"
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+      >
+        <div className="relative overflow-hidden rounded-lg aspect-[2/3] bg-[#1a1a1a]">
           <img
-            src={stream.image}
-            alt={stream.title}
-            className={`w-full h-full object-cover transition-all duration-300 ${
-              imageLoaded ? 'opacity-100' : 'opacity-0'
-            }`}
-            onLoad={() => setImageLoaded(true)}
-            onError={() => setImageError(true)}
+            src={item.image}
+            alt={item.title}
+            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+            loading="lazy"
           />
-        )}
-        
-        {/* Error fallback */}
-        {imageError && (
-          <div className="w-full h-full bg-netflix-hover flex items-center justify-center">
-            <div className="text-center text-muted-foreground">
-              <div className="text-4xl mb-2">🎬</div>
-              <div className="text-sm">Image not available</div>
+
+          <div className={`absolute inset-0 bg-black/60 flex flex-col justify-end p-2.5 transition-opacity duration-200 ${hovered ? "opacity-100" : "opacity-0"}`}>
+            <button
+              onClick={() => setShowModal(true)}
+              className="w-full bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-1.5 rounded mb-2 flex items-center justify-center gap-1 transition-colors"
+            >
+              <svg className="w-3 h-3 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+              Watch
+            </button>
+            <div className="text-white/60 text-xs text-center">{item.year} · {item.country}</div>
+          </div>
+
+          <div className="absolute top-2 left-2">
+            <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${item.type === "Series" ? "bg-blue-600" : "bg-red-600"} text-white`}>
+              {item.type}
+            </span>
+          </div>
+
+          {item.rating && (
+            <div className="absolute top-2 right-2 flex items-center gap-0.5 bg-black/70 rounded px-1.5 py-0.5">
+              <svg className="w-2.5 h-2.5 text-yellow-400 fill-current" viewBox="0 0 20 20">
+                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+              </svg>
+              <span className="text-yellow-400 text-xs font-bold">{item.rating}</span>
             </div>
-          </div>
-        )}
-        
-        {/* Overlay gradient */}
-        <div className="absolute inset-0 bg-gradient-card opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-        
-        {/* Play button */}
-        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 transform scale-75 group-hover:scale-100">
-          <div className="bg-primary/90 backdrop-blur-sm rounded-full p-4 shadow-lg">
-            <Play className="h-8 w-8 text-primary-foreground fill-current" />
-          </div>
+          )}
+        </div>
+
+        <div className="mt-2 px-0.5">
+          <h3 className="text-white text-xs font-semibold truncate">{item.title}</h3>
+          <p className="text-white/50 text-xs mt-0.5">{item.year} · {item.genres[0]}</p>
         </div>
       </div>
-      
-      {/* Title */}
-      <div className="p-4">
-        <h3 className="font-semibold text-foreground line-clamp-2 group-hover:text-primary transition-colors duration-300">
-          {stream.title}
-        </h3>
-      </div>
-    </Card>
+
+      {showModal && <WatchModal item={item} onClose={() => setShowModal(false)} />}
+    </>
   );
-};
+}
