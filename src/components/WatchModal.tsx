@@ -61,7 +61,6 @@ export default function WatchModal({ item, onClose, initialSeason, initialEpisod
   useEffect(() => {
     if (!hasSubjectId || useFallback) return;
     setSourcesLoading(true);
-    setSourcesError(null);
     setDownloads([]);
     setSelectedDl(null);
 
@@ -240,7 +239,7 @@ export default function WatchModal({ item, onClose, initialSeason, initialEpisod
                 // allow-presentation + allow-pointer-lock enable fullscreen/controls
                 // NOT included: allow-popups, allow-top-navigation, allow-downloads
                 sandbox="allow-scripts allow-same-origin allow-forms allow-presentation allow-pointer-lock allow-orientation-lock allow-modals"
-                referrerPolicy="no-referrer"
+                referrerPolicy="origin"
                 className="w-full h-full border-0"
                 title={item.title}
                 onLoad={handleEmbedLoad}
