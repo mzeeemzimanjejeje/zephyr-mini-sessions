@@ -42,7 +42,6 @@ export default function WatchModal({ item, onClose, initialSeason, initialEpisod
   const [seasons, setSeasons] = useState<CinevSeason[]>([]);
   const [selectedDl, setSelectedDl] = useState<CineverseDownload | null>(null);
   const [sourcesLoading, setSourcesLoading] = useState(false);
-  const [sourcesError, setSourcesError] = useState<string | null>(null);
   const [useFallback, setUseFallback] = useState(false);
   const [showQuality, setShowQuality] = useState(false);
 
@@ -86,10 +85,14 @@ export default function WatchModal({ item, onClose, initialSeason, initialEpisod
           const hd = sorted.find(d => d.resolution >= 720) ?? sorted[0];
           setSelectedDl(hd);
         } else {
-          setSourcesError("No video files available for this title.");
+          // No sources — silently fall back to embed player
+          setUseFallback(true);
         }
       })
-      .catch(err => setSourcesError(`Unable to load video: ${err.message}`))
+      .catch(() => {
+        // API error — silently fall back to embed player
+        setUseFallback(true);
+      })
       .finally(() => setSourcesLoading(false));
   }, [item.subjectId, season, episode, isTV, hasSubjectId, useFallback]);
 
@@ -177,18 +180,6 @@ export default function WatchModal({ item, onClose, initialSeason, initialEpisod
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 z-10">
                 <div className="w-10 h-10 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
                 <p className="text-white/50 text-sm">Loading video...</p>
-              </div>
-            )}
-            {sourcesError && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-8 z-10">
-                <p className="text-4xl">⚠️</p>
-                <p className="text-white/60 text-center text-sm">{sourcesError}</p>
-                {embedId && (
-                  <button onClick={() => setUseFallback(true)}
-                    className="bg-red-600 hover:bg-red-700 text-white text-sm px-5 py-2 rounded-lg transition-colors">
-                    Try another player
-                  </button>
-                )}
               </div>
             )}
             {!sourcesLoading && videoSrc && (
