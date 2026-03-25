@@ -119,19 +119,9 @@ export default function WatchModal({ item, onClose, initialSeason, initialEpisod
     };
   }, [season, episode, hasSubjectId, useFallback]);
 
-  // Auto-advance to next embed source if user hasn't interacted after 12s
   const handleEmbedLoad = useCallback(() => {
     setEmbedLoading(false);
     if (switchTimerRef.current) clearTimeout(switchTimerRef.current);
-    switchTimerRef.current = setTimeout(() => {
-      if (document.activeElement !== iframeRef.current) {
-        setEmbedIdx(prev => {
-          const next = prev + 1;
-          return next < EMBED_SOURCES.length ? next : prev;
-        });
-        setEmbedLoading(true);
-      }
-    }, 12000);
   }, []);
 
   useEffect(() => {
@@ -234,11 +224,9 @@ export default function WatchModal({ item, onClose, initialSeason, initialEpisod
                 src={iframeUrl}
                 allowFullScreen
                 allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
-                // sandbox blocks popup ads, new-tab hijacks, and page redirects
-                // allow-scripts + allow-same-origin keeps the player working
-                // allow-presentation + allow-pointer-lock enable fullscreen/controls
-                // NOT included: allow-popups, allow-top-navigation, allow-downloads
-                sandbox="allow-scripts allow-same-origin allow-forms allow-presentation allow-pointer-lock allow-orientation-lock allow-modals"
+                // sandbox: blocks top-navigation hijacks and downloads
+                // allow-popups needed by some players to initialise their video loader
+                sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-presentation allow-pointer-lock allow-orientation-lock allow-modals"
                 referrerPolicy="origin"
                 className="w-full h-full border-0"
                 title={item.title}

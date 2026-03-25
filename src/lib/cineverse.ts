@@ -284,26 +284,26 @@ export const STREAM_PROXY_ALT = "https://ab-proxy1.abrahamdw882.workers.dev/?u="
 // Embed player sources shared between web and mobile.
 // Signature: (type: "movie"|"tv", imdbId: string, season: number, episode: number) => url
 export const EMBED_SOURCES: Array<(t: string, id: string, s: number, e: number) => string> = [
-  // vidlink.pro — fast, reliable
+  // 1. vidlink.pro — fast, reliable
   (t, id, s, e) => t === "tv" ? `https://vidlink.pro/tv/${id}/${s}/${e}` : `https://vidlink.pro/movie/${id}`,
-  // vidsrc.me — stable long-running source
+  // 2. vidsrc.me — long-standing stable source
   (t, id, s, e) => t === "tv" ? `https://vidsrc.me/embed/tv?imdb=${id}&season=${s}&episode=${e}` : `https://vidsrc.me/embed/movie?imdb=${id}`,
-  // player.videasy.net
+  // 3. vidsrc.su — very reliable mirror
+  (t, id, s, e) => t === "tv" ? `https://vidsrc.su/embed/tv/${id}/${s}/${e}` : `https://vidsrc.su/embed/movie/${id}`,
+  // 4. player.videasy.net
   (t, id, s, e) => t === "tv" ? `https://player.videasy.net/tv/${id}/${s}/${e}` : `https://player.videasy.net/movie/${id}`,
-  // embed.su — solid fallback
+  // 5. embed.su
   (t, id, s, e) => t === "tv" ? `https://embed.su/embed/tv/${id}/${s}/${e}` : `https://embed.su/embed/movie/${id}`,
-  // moviesapi.club
-  (t, id, s, e) => t === "tv" ? `https://moviesapi.club/tv/${id}-${s}-${e}` : `https://moviesapi.club/movie/${id}`,
-  // autoembed.cc
+  // 6. autoembed.cc
   (t, id, s, e) => t === "tv" ? `https://autoembed.cc/tv/imdb/${id}-${s}-${e}` : `https://autoembed.cc/movie/imdb/${id}`,
-  // 2embed.cc — URL fixed (was missing ? before query string)
-  (t, id, s, e) => t === "tv" ? `https://2embed.cc/embedtv/${id}?s=${s}&e=${e}` : `https://2embed.cc/embed/${id}`,
-  // smashystream
-  (t, id, s, e) => t === "tv" ? `https://smashystream.xyz/player.php?imdb=${id}&s=${s}&e=${e}` : `https://smashystream.xyz/player.php?imdb=${id}`,
-  // vidsrc.mov
+  // 7. 2embed.org — more reliable than 2embed.cc
+  (t, id, s, e) => t === "tv" ? `https://www.2embed.org/embed/tv?id=${id}&s=${s}&e=${e}` : `https://www.2embed.org/embed/${id}`,
+  // 8. vidsrc.rip
+  (t, id, s, e) => t === "tv" ? `https://vidsrc.rip/embed/tv/${id}/${s}/${e}` : `https://vidsrc.rip/embed/movie/${id}`,
+  // 9. vidsrc.mov
   (t, id, s, e) => t === "tv" ? `https://vidsrc.mov/embed/tv/${id}/${s}/${e}` : `https://vidsrc.mov/embed/movie/${id}`,
-  // multiembed.mov
-  (t, id, s, e) => t === "tv" ? `https://multiembed.mov/?video_id=${id}&tmdb=0&s=${s}&e=${e}` : `https://multiembed.mov/?video_id=${id}&tmdb=0`,
+  // 10. vidbinge.dev
+  (t, id, s, e) => t === "tv" ? `https://vidbinge.dev/embed/tv/${id}/${s}/${e}` : `https://vidbinge.dev/embed/movie/${id}`,
 ];
 
 export function resolutionLabel(r: number): string {
