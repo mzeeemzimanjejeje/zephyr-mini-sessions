@@ -258,6 +258,12 @@ export default function WatchModal({ item, onClose, initialSeason, initialEpisod
                 src={iframeUrl}
                 allowFullScreen
                 allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+                // sandbox blocks popup ads, new-tab hijacks, and page redirects
+                // allow-scripts + allow-same-origin keeps the player working
+                // allow-presentation + allow-pointer-lock enable fullscreen/controls
+                // NOT included: allow-popups, allow-top-navigation, allow-downloads
+                sandbox="allow-scripts allow-same-origin allow-forms allow-presentation allow-pointer-lock allow-orientation-lock allow-modals"
+                referrerPolicy="no-referrer"
                 className="w-full h-full border-0"
                 title={item.title}
                 onLoad={handleEmbedLoad}

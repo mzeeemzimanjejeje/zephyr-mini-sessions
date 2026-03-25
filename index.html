@@ -33,6 +33,36 @@
   </head>
   <body>
     <div id="root"></div>
+
+    <!-- Ad blocker: block popup ads, new-tab hijacks, and popunder focus-steals -->
+    <script>
+      // 1. Override window.open so embed players can't spawn popup ad windows
+      window.open = function() { return null; };
+
+      // 2. Block popunder ads — they steal window focus to sneak an ad tab behind
+      //    Re-focus this window the moment focus is lost unexpectedly
+      var _adFocusTimer = null;
+      window.addEventListener('blur', function() {
+        _adFocusTimer = setTimeout(function() { window.focus(); }, 50);
+      });
+      window.addEventListener('focus', function() {
+        if (_adFocusTimer) { clearTimeout(_adFocusTimer); _adFocusTimer = null; }
+      });
+
+      // 3. Intercept any <a target="_blank"> clicks that bubble up from iframes
+      document.addEventListener('click', function(e) {
+        var t = e.target;
+        while (t && t !== document) {
+          if (t.tagName === 'A' && t.target === '_blank') {
+            var href = t.href || '';
+            // Only allow blank-target links that are explicitly inside our app UI
+            if (!t.closest('#root')) { e.preventDefault(); e.stopPropagation(); }
+          }
+          t = t.parentNode;
+        }
+      }, true);
+    </script>
+
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
