@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { ContentItem } from "../data/content";
 import { useWatchHistory } from "../hooks/useWatchHistory";
 import { bwmSources, imdbSearch, BwmSource, BwmSubtitle } from "../api/bwm";
+import { bwmCache, imdbCache, BwmCacheEntry } from "../api/prefetch";
 
 interface Props {
   item: ContentItem;
@@ -25,10 +26,6 @@ const AUTO_SWITCH_MS = 12000;
 
 type PlayerMode = "resolving" | "direct" | "embed" | "trailer" | "unavailable";
 type EmbedPhase = "loading" | "playing";
-
-interface BwmCacheEntry { sources: BwmSource[]; subtitles: BwmSubtitle[] }
-const bwmCache = new Map<string, BwmCacheEntry | null>();
-const imdbCache = new Map<string, string | null>();
 
 function qualitySort(s: BwmSource[]): BwmSource[] {
   return [...s].sort((a, b) => QUALITY_ORDER.indexOf(a.quality) - QUALITY_ORDER.indexOf(b.quality));

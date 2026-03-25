@@ -1,6 +1,7 @@
 import { useState, memo, useCallback, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ContentItem } from "../data/content";
+import { prefetchItem } from "../api/prefetch";
 import WatchModal from "./WatchModal";
 
 interface Props { item: ContentItem; }
@@ -18,12 +19,13 @@ const MovieCard = memo(function MovieCard({ item }: Props) {
     setHovered(true);
     if (!prefetchedRef.current) {
       prefetchedRef.current = true;
+      prefetchItem(item);
       const link = document.createElement("link");
       link.rel = "prefetch";
       link.href = detailPath;
       document.head.appendChild(link);
     }
-  }, [detailPath]);
+  }, [item, detailPath]);
 
   const handleWatch = useCallback((e: React.MouseEvent) => {
     e.preventDefault();

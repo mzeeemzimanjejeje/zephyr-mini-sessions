@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate, useLocation } from "react-router-dom";
 import { allContent, imdbByTitle } from "../data/content";
 import { genreInfo } from "../data/cast";
 import { casperDetail, casperToContentItem, type CasperItem } from "../api/casper";
+import { prefetchItem } from "../api/prefetch";
 import WatchModal from "../components/WatchModal";
 import MovieCard from "../components/MovieCard";
 import { useWatchHistory } from "../hooks/useWatchHistory";
@@ -35,9 +36,17 @@ export default function DetailPage() {
     if (subjectId) {
       setCasperLoading(true);
       casperDetail(subjectId)
-        .then(d => setCasperData(d))
+        .then(d => {
+          setCasperData(d);
+          if (d) {
+            const key = d.title.toLowerCase().replace(/[^a-z0-9]/g, "");
+            const imdbId = imdbByTitle.get(key);
+            prefetchItem(casperToContentItem(d, imdbId));
+          }
+        })
         .finally(() => setCasperLoading(false));
     } else if (staticItem) {
+      prefetchItem(staticItem);
       if (staticItem.subjectId) {
         setCasperLoading(true);
         casperDetail(staticItem.subjectId)
