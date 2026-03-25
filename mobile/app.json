@@ -25,7 +25,15 @@
     },
     "web": {
       "favicon": "./assets/icon.png",
-      "bundler": "metro"
+      "bundler": "metro",
+      "name": "Courtney ENT",
+      "shortName": "CE",
+      "description": "Stream movies and series — free, no ads",
+      "backgroundColor": "#0a0a0a",
+      "themeColor": "#e50914",
+      "display": "standalone",
+      "orientation": "portrait",
+      "startUrl": "/"
     },
     "plugins": [
       "expo-router",

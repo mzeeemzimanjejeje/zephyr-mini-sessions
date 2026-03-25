@@ -74,8 +74,10 @@ Key endpoints:
 
 Located in `mobile/` — Expo SDK 55 + React Native + Expo Router.
 
-**Workflow:** `Courtney ENT Mobile` runs on port 8080  
-`cd mobile && CI=1 npx expo start --port 8080 --web`
+**Workflow:** `Courtney ENT Mobile` runs on **port 5000** (webview/preview pane)  
+`cd mobile && CI=1 npx expo start --port 5000 --web`
+
+**StreamFlixx runs on port 3000** (switch in the port selector to see it)
 
 **Screens:**
 - Home — Hero banner + trending rows from Cineverse API
@@ -86,8 +88,21 @@ Located in `mobile/` — Expo SDK 55 + React Native + Expo Router.
 
 **Test on device:** Scan the QR code shown in the mobile workflow console with Expo Go app
 
+**PWA Support:** `mobile/app.json` has full `web` PWA config (standalone display, theme #e50914).  
+Service worker at `mobile/web/sw.js` caches the app for offline use.
+
+## App Banner (StreamFlixx Website)
+
+`src/components/AppBanner.tsx` — always-visible sticky bar at the very top of the StreamFlixx website.
+- Shows CE logo + "Courtney ENT" name + tagline
+- "Get App" button opens the Courtney ENT web app (or triggers PWA install prompt if available)
+- Dismiss button (X) — stores dismissal in localStorage
+- URL configured via `VITE_MOBILE_APP_URL` env var (set in `.env.local` for dev)
+
+**To update the app URL for production:** set `VITE_MOBILE_APP_URL` in Vercel environment variables to the deployed Courtney ENT app URL.
+
 ## Deployment
 
 Static site:
-- Build: `PORT=5000 BASE_PATH=/ pnpm run build`
+- Build: `PORT=3000 BASE_PATH=/ pnpm run build`
 - Output: `dist/public`

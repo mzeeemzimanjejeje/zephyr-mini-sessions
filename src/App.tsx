@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Navbar from "./components/Navbar";
+import AppBanner from "./components/AppBanner";
 import ErrorBoundary from "./components/ErrorBoundary";
 
 const Home       = lazy(() => import("./pages/Home"));
@@ -23,6 +24,7 @@ export default function App() {
   return (
     <ErrorBoundary>
       <BrowserRouter basename={BASE}>
+        <AppBanner />
         <Navbar />
         <Suspense fallback={<PageLoader />}>
           <Routes>
