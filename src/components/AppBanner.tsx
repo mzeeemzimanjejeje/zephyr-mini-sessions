@@ -1,8 +1,5 @@
 import { useState, useEffect } from "react";
 
-const APK_URL =
-  "https://github.com/mzeeemzimanjejeje/zephyr-mini-sessions/releases/latest/download/courtney-ent.apk";
-
 const isIOS =
   typeof navigator !== "undefined" &&
   /iphone|ipad|ipod/i.test(navigator.userAgent);
@@ -14,7 +11,7 @@ const isAndroid =
 export default function AppBanner() {
   const [visible, setVisible] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [iosHint, setIosHint] = useState(false);
+  const [hint, setHint] = useState(false);
 
   useEffect(() => {
     if (localStorage.getItem("ce_banner_dismissed") === "1") return;
@@ -28,8 +25,8 @@ export default function AppBanner() {
     return () => window.removeEventListener("beforeinstallprompt", handler);
   }, []);
 
-  const handleInstall = async () => {
-    // Chrome Android — native PWA install prompt available
+  const handleGetApp = async () => {
+    // Chrome Android — native install prompt fires immediately
     if (deferredPrompt) {
       deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
@@ -41,20 +38,9 @@ export default function AppBanner() {
       return;
     }
 
-    // iOS — can't install APKs; show one quick hint
-    if (isIOS) {
-      setIosHint(true);
-      setTimeout(() => setIosHint(false), 4000);
-      return;
-    }
-
-    // Android (no PWA prompt yet) — direct APK download
-    const a = document.createElement("a");
-    a.href = APK_URL;
-    a.download = "courtney-ent.apk";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    // iOS or Android without PWA prompt — show one-line tooltip
+    setHint(true);
+    setTimeout(() => setHint(false), 5000);
   };
 
   const handleDismiss = () => {
@@ -63,6 +49,14 @@ export default function AppBanner() {
   };
 
   if (!visible) return null;
+
+  const hintText = isIOS
+    ? 'In Safari tap Share → "Add to Home Screen"'
+    : 'Tap ⋮ in Chrome → "Add to Home Screen"';
+
+  const buttonLabel = deferredPrompt
+    ? "Install App"
+    : "Get App";
 
   return (
     <div className="relative w-full z-[9999]">
@@ -76,38 +70,18 @@ export default function AppBanner() {
               Courtney ENT
             </p>
             <p className="text-gray-400 text-xs leading-none truncate">
-              {isIOS
-                ? "Tap Share → Add to Home Screen"
-                : "Free • Stream movies & series"}
+              Free • Stream movies &amp; series
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          {/* On iOS: link to site (best we can do — native install is via Safari Share) */}
-          {isIOS ? (
-            <button
-              onClick={handleInstall}
-              className="bg-red-600 hover:bg-red-500 text-white text-xs font-bold px-4 py-1.5 rounded-full transition-colors whitespace-nowrap"
-            >
-              How to Install
-            </button>
-          ) : (
-            /* Android / Desktop: direct APK download or PWA install */
-            <a
-              href={APK_URL}
-              download="courtney-ent.apk"
-              onClick={(e) => {
-                if (deferredPrompt) {
-                  e.preventDefault();
-                  handleInstall();
-                }
-              }}
-              className="bg-red-600 hover:bg-red-500 text-white text-xs font-bold px-4 py-1.5 rounded-full transition-colors whitespace-nowrap"
-            >
-              {deferredPrompt ? "Install App" : "Download APK"}
-            </a>
-          )}
+          <button
+            onClick={handleGetApp}
+            className="bg-red-600 hover:bg-red-500 active:bg-red-700 text-white text-xs font-bold px-4 py-1.5 rounded-full transition-colors whitespace-nowrap"
+          >
+            {buttonLabel}
+          </button>
           <button
             onClick={handleDismiss}
             className="text-gray-500 hover:text-gray-300 transition-colors p-1"
@@ -120,12 +94,10 @@ export default function AppBanner() {
         </div>
       </div>
 
-      {/* iOS hint tooltip */}
-      {iosHint && (
-        <div className="absolute right-4 top-full mt-2 bg-[#1f1f1f] border border-[#333] rounded-xl shadow-2xl px-4 py-3 z-[10000] text-xs text-gray-300 max-w-[220px]">
-          In <strong className="text-white">Safari</strong>, tap the{" "}
-          <strong className="text-white">Share</strong> button then{" "}
-          <strong className="text-white">"Add to Home Screen"</strong>
+      {/* Install hint tooltip */}
+      {hint && (
+        <div className="absolute right-4 top-full mt-2 bg-[#1f1f1f] border border-[#333] rounded-xl shadow-2xl px-4 py-3 z-[10000] text-xs text-gray-300 max-w-[240px] leading-relaxed">
+          {hintText}
         </div>
       )}
     </div>

@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  ActivityIndicator, Dimensions, Platform
+  ActivityIndicator, Dimensions, Platform, BackHandler
 } from "react-native";
 import { WebView } from "react-native-webview";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -18,6 +18,8 @@ export default function WatchScreen() {
   }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const webViewRef = useRef<any>(null);
+  const [canWebViewGoBack, setCanWebViewGoBack] = useState(false);
 
   const [imdbId, setImdbId] = useState<string | null>(null);
   const [sourceIdx, setSourceIdx] = useState(0);
@@ -36,6 +38,21 @@ export default function WatchScreen() {
     const yearNum = year ? parseInt(year) || undefined : undefined;
     fetchImdbId(title ?? "", yearNum).then(setImdbId);
   }, [title, year]);
+
+  // Android hardware back button: go back in WebView first, then exit screen
+  useEffect(() => {
+    if (Platform.OS !== "android") return;
+    const onBack = () => {
+      if (canWebViewGoBack && webViewRef.current) {
+        webViewRef.current.goBack();
+        return true;
+      }
+      router.back();
+      return true;
+    };
+    const sub = BackHandler.addEventListener("hardwareBackPress", onBack);
+    return () => sub.remove();
+  }, [canWebViewGoBack, router]);
 
   const embedUrl = imdbId
     ? EMBED_SOURCES[sourceIdx]?.(mediaType, imdbId, season, episode) ?? ""
@@ -69,6 +86,7 @@ export default function WatchScreen() {
               </View>
             )}
             <WebView
+              ref={webViewRef}
               key={`${sourceIdx}-${imdbId}-${season}-${episode}`}
               source={{ uri: embedUrl }}
               style={styles.webview}
@@ -82,6 +100,7 @@ export default function WatchScreen() {
                 setLoading(false);
                 if (sourceIdx + 1 < EMBED_SOURCES.length) nextSource();
               }}
+              onNavigationStateChange={(state) => setCanWebViewGoBack(state.canGoBack)}
               onShouldStartLoadWithRequest={(req) => {
                 const url = req.url;
                 if (!url.startsWith("http")) return false;
@@ -95,14 +114,15 @@ export default function WatchScreen() {
 
       {/* Top bar */}
       <View style={[styles.topBar, { top: topInset }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn}>
-          <Ionicons name="chevron-back" size={22} color="#fff" />
+        <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <Ionicons name="arrow-back" size={22} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.topTitle} numberOfLines={1}>{title}</Text>
         <TouchableOpacity
           onPress={nextSource}
           style={[styles.iconBtn, sourceIdx + 1 >= EMBED_SOURCES.length && { opacity: 0.3 }]}
           disabled={sourceIdx + 1 >= EMBED_SOURCES.length}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
           <Ionicons name="refresh" size={18} color="#fff" />
         </TouchableOpacity>
@@ -116,7 +136,10 @@ export default function WatchScreen() {
           <View style={styles.epRow}>
             <TouchableOpacity
               style={styles.epBtn}
-              onPress={() => { if (episode > 1) { setEpisode((e) => e - 1); setLoading(true); } else if (season > 1) { setSeason((s) => s - 1); setEpisode(1); setLoading(true); } }}
+              onPress={() => {
+                if (episode > 1) { setEpisode((e) => e - 1); setLoading(true); }
+                else if (season > 1) { setSeason((s) => s - 1); setEpisode(1); setLoading(true); }
+              }}
             >
               <Ionicons name="play-skip-back" size={14} color="#aaa" />
             </TouchableOpacity>
@@ -153,7 +176,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12, paddingVertical: 8,
     backgroundColor: "rgba(0,0,0,0.7)",
   },
-  iconBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.12)", alignItems: "center", justifyContent: "center" },
+  iconBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.15)", alignItems: "center", justifyContent: "center" },
   topTitle: { flex: 1, color: "#fff", fontFamily: "Inter_600SemiBold", fontSize: 15 },
   bottomBar: {
     backgroundColor: "rgba(10,10,10,0.95)", paddingTop: 10, paddingHorizontal: 16,
