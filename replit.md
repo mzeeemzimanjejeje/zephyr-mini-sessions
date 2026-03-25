@@ -70,6 +70,22 @@ Key endpoints:
 - Hero banner, genre browsing, content carousels
 - Detail pages with cast, genres, seasons info
 
+## Mobile App (Courtney ENT)
+
+Located in `mobile/` — Expo SDK 55 + React Native + Expo Router.
+
+**Workflow:** `Courtney ENT Mobile` runs on port 8080  
+`cd mobile && CI=1 npx expo start --port 8080 --web`
+
+**Screens:**
+- Home — Hero banner + trending rows from Cineverse API
+- Search — Real-time search with results grid
+- Watch — WebView player cycling through 5 embed sources, with episode navigation for series
+
+**Mobile Logo:** "CE" red badge in the header and app icon
+
+**Test on device:** Scan the QR code shown in the mobile workflow console with Expo Go app
+
 ## Deployment
 
 Static site:

@@ -11,6 +11,7 @@ import {
   resolutionLabel,
   fileSizeMB,
   streamProxyUrl,
+  EMBED_SOURCES,
 } from "../lib/cineverse";
 
 interface Props {
@@ -19,30 +20,6 @@ interface Props {
   initialSeason?: number;
   initialEpisode?: number;
 }
-
-// Ordered by reliability (confirmed working). All use IMDB ID.
-const EMBED_SOURCES: Array<(t: string, id: string, s: number, e: number) => string> = [
-  (t, id, s, e) =>
-    t === "tv" ? `https://vidsrc.xyz/embed/tv/${id}/${s}/${e}` : `https://vidsrc.xyz/embed/movie/${id}`,
-  (t, id, s, e) =>
-    t === "tv" ? `https://multiembed.mov/?video_id=${id}&tmdb=0&s=${s}&e=${e}` : `https://multiembed.mov/?video_id=${id}&tmdb=0`,
-  (t, id, s, e) =>
-    t === "tv" ? `https://vidsrc.to/embed/tv/${id}?season=${s}&episode=${e}` : `https://vidsrc.to/embed/movie/${id}`,
-  (t, id, s, e) =>
-    t === "tv" ? `https://smashystream.xyz/player.php?imdb=${id}&s=${s}&e=${e}` : `https://smashystream.xyz/player.php?imdb=${id}`,
-  (t, id, s, e) =>
-    t === "tv" ? `https://2embed.cc/embedtv/${id}&s=${s}&e=${e}` : `https://2embed.cc/embed/${id}`,
-  (t, id, s, e) =>
-    t === "tv" ? `https://www.2embed.skin/embedtv/${id}&s=${s}&e=${e}` : `https://www.2embed.skin/embed/${id}`,
-  (t, id, s, e) =>
-    t === "tv" ? `https://player.videasy.net/tv/${id}/${s}/${e}` : `https://player.videasy.net/movie/${id}`,
-  (t, id, s, e) =>
-    t === "tv" ? `https://vidlink.pro/tv/${id}/${s}/${e}` : `https://vidlink.pro/movie/${id}`,
-  (t, id, s, e) =>
-    t === "tv" ? `https://vidsrc.mov/embed/tv/${id}/${s}/${e}` : `https://vidsrc.mov/embed/movie/${id}`,
-  (t, id, s, e) =>
-    t === "tv" ? `https://moviesapi.club/tv/${id}-${s}-${e}` : `https://moviesapi.club/movie/${id}`,
-];
 
 export default function WatchModal({ item, onClose, initialSeason, initialEpisode }: Props) {
   const isTV = item.type === "Series";
