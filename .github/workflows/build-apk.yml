@@ -8,6 +8,9 @@ on:
       - 'src/**'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build APK
@@ -32,7 +35,7 @@ jobs:
         run: cd mobile && npm install
 
       - name: Install root dependencies (for shared src/)
-        run: npm install --prefix . || true
+        run: npm install --ignore-scripts 2>/dev/null || true
 
       - name: Generate Android native project
         run: cd mobile && npx expo prebuild --platform android --clean --no-install
@@ -44,26 +47,72 @@ jobs:
 
       - name: Build debug APK
         run: cd mobile/android && ./gradlew assembleDebug --no-daemon
-        env:
-          ANDROID_HOME: ${{ env.ANDROID_HOME }}
 
-      - name: Rename APK
+      - name: Locate APK
+        id: apk
         run: |
-          mkdir -p output
-          cp mobile/android/app/build/outputs/apk/debug/app-debug.apk output/courtney-ent.apk
+          APK=$(find mobile/android/app/build/outputs/apk -name "*.apk" | head -1)
+          echo "path=$APK" >> $GITHUB_OUTPUT
+          echo "Found APK: $APK"
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+      - name: Upload APK artifact (backup)
+        uses: actions/upload-artifact@v4
         with:
-          tag_name: apk-latest
-          name: Courtney ENT — Android App
-          body: |
-            ## Download Courtney ENT for Android
+          name: courtney-ent-apk
+          path: ${{ steps.apk.outputs.path }}
+          retention-days: 30
 
-            Tap **courtney-ent.apk** to install directly on your phone.
+      - name: Publish to GitHub Releases
+        run: |
+          APK_PATH="${{ steps.apk.outputs.path }}"
 
-            > If prompted, enable **"Install from unknown sources"** in your Android settings.
-          files: output/courtney-ent.apk
-          make_latest: true
+          # Delete existing release if present
+          EXISTING=$(curl -s \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/tags/apk-latest" \
+            | python3 -c "import sys,json; r=json.load(sys.stdin); print(r.get('id',''))" 2>/dev/null || true)
+
+          if [ -n "$EXISTING" ] && [ "$EXISTING" != "None" ]; then
+            echo "Deleting existing release $EXISTING"
+            curl -s -X DELETE \
+              -H "Authorization: Bearer $GITHUB_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/$EXISTING"
+          fi
+
+          # Delete existing tag
+          curl -s -X DELETE \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/git/refs/tags/apk-latest" || true
+
+          # Create new release
+          RELEASE_ID=$(curl -s -X POST \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "tag_name": "apk-latest",
+              "name": "Courtney ENT — Android App",
+              "body": "Tap **courtney-ent.apk** below to install on your Android phone.\n\n> If prompted, enable Install from unknown sources in Android settings.",
+              "draft": false,
+              "prerelease": false
+            }' \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/releases" \
+            | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")
+
+          echo "Created release: $RELEASE_ID"
+
+          # Upload APK
+          curl -s -X POST \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "Content-Type: application/vnd.android.package-archive" \
+            --data-binary @"$APK_PATH" \
+            "https://uploads.github.com/repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets?name=courtney-ent.apk"
+
+          echo "APK uploaded — download at:"
+          echo "https://github.com/$GITHUB_REPOSITORY/releases/latest/download/courtney-ent.apk"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
