@@ -5,8 +5,6 @@ import {
   fetchCineverseSources,
   fetchCineverseInfo,
   fetchImdbId,
-  fetchXcasperSources,
-  XcasperStreamLink,
   CineverseDownload,
   CineverseCaption,
   CinevSeason,
@@ -22,23 +20,28 @@ interface Props {
   initialEpisode?: number;
 }
 
-const EMBED_SOURCES = [
-  (t: string, id: string, s: number, e: number) =>
+// Ordered by reliability (confirmed working). All use IMDB ID.
+const EMBED_SOURCES: Array<(t: string, id: string, s: number, e: number) => string> = [
+  (t, id, s, e) =>
     t === "tv" ? `https://vidsrc.xyz/embed/tv/${id}/${s}/${e}` : `https://vidsrc.xyz/embed/movie/${id}`,
-  (t: string, id: string, s: number, e: number) =>
-    t === "tv" ? `https://embed.su/embed/tv/${id}/${s}/${e}` : `https://embed.su/embed/movie/${id}`,
-  (t: string, id: string, s: number, e: number) =>
-    t === "tv" ? `https://moviesapi.club/tv/${id}-${s}-${e}` : `https://moviesapi.club/movie/${id}`,
-  (t: string, id: string, s: number, e: number) =>
+  (t, id, s, e) =>
+    t === "tv" ? `https://multiembed.mov/?video_id=${id}&tmdb=0&s=${s}&e=${e}` : `https://multiembed.mov/?video_id=${id}&tmdb=0`,
+  (t, id, s, e) =>
     t === "tv" ? `https://vidsrc.to/embed/tv/${id}?season=${s}&episode=${e}` : `https://vidsrc.to/embed/movie/${id}`,
-  (t: string, id: string, s: number, e: number) =>
-    t === "tv" ? `https://player.videasy.net/tv/${id}/${s}/${e}` : `https://player.videasy.net/movie/${id}`,
-  (t: string, id: string, s: number, e: number) =>
-    t === "tv" ? `https://vidsrc.mov/embed/tv/${id}/${s}/${e}` : `https://vidsrc.mov/embed/movie/${id}`,
-  (t: string, id: string, s: number, e: number) =>
+  (t, id, s, e) =>
+    t === "tv" ? `https://smashystream.xyz/player.php?imdb=${id}&s=${s}&e=${e}` : `https://smashystream.xyz/player.php?imdb=${id}`,
+  (t, id, s, e) =>
     t === "tv" ? `https://2embed.cc/embedtv/${id}&s=${s}&e=${e}` : `https://2embed.cc/embed/${id}`,
-  (t: string, id: string, s: number, e: number) =>
+  (t, id, s, e) =>
+    t === "tv" ? `https://www.2embed.skin/embedtv/${id}&s=${s}&e=${e}` : `https://www.2embed.skin/embed/${id}`,
+  (t, id, s, e) =>
+    t === "tv" ? `https://player.videasy.net/tv/${id}/${s}/${e}` : `https://player.videasy.net/movie/${id}`,
+  (t, id, s, e) =>
     t === "tv" ? `https://vidlink.pro/tv/${id}/${s}/${e}` : `https://vidlink.pro/movie/${id}`,
+  (t, id, s, e) =>
+    t === "tv" ? `https://vidsrc.mov/embed/tv/${id}/${s}/${e}` : `https://vidsrc.mov/embed/movie/${id}`,
+  (t, id, s, e) =>
+    t === "tv" ? `https://moviesapi.club/tv/${id}-${s}-${e}` : `https://moviesapi.club/movie/${id}`,
 ];
 
 export default function WatchModal({ item, onClose, initialSeason, initialEpisode }: Props) {
@@ -56,8 +59,6 @@ export default function WatchModal({ item, onClose, initialSeason, initialEpisod
   const [useFallback, setUseFallback] = useState(false);
   const [showQuality, setShowQuality] = useState(false);
   const [resolvedImdbId, setResolvedImdbId] = useState<string | null>(null);
-  const [xcasperLinks, setXcasperLinks] = useState<XcasperStreamLink[]>([]);
-  const [selectedXcasper, setSelectedXcasper] = useState<XcasperStreamLink | null>(null);
 
   const [embedIdx, setEmbedIdx] = useState(0);
   const [embedLoading, setEmbedLoading] = useState(true);
@@ -86,29 +87,9 @@ export default function WatchModal({ item, onClose, initialSeason, initialEpisod
     setSourcesError(null);
     setDownloads([]);
     setSelectedDl(null);
-    setXcasperLinks([]);
-    setSelectedXcasper(null);
 
     const s = isTV ? season : undefined;
     const e = isTV ? episode : undefined;
-
-    const tryXcasperThenEmbed = async () => {
-      const xcType: "movie" | "tv" = isTV ? "tv" : "movie";
-      const links = await fetchXcasperSources(item.title, xcType, s, e);
-      if (links.length > 0) {
-        // Sort: prefer highest quality first
-        const sorted = [...links].sort((a, b) => {
-          const qA = parseInt(a.quality) || 0;
-          const qB = parseInt(b.quality) || 0;
-          return qB - qA;
-        });
-        setXcasperLinks(sorted);
-        setSelectedXcasper(sorted.find(l => (parseInt(l.quality) || 0) >= 720) ?? sorted[0]);
-      } else {
-        setUseFallback(true);
-      }
-      setSourcesLoading(false);
-    };
 
     fetchCineverseSources(item.subjectId!, s, e)
       .then(data => {
@@ -118,17 +99,17 @@ export default function WatchModal({ item, onClose, initialSeason, initialEpisod
         if (sorted.length > 0) {
           const hd = sorted.find(d => d.resolution >= 720) ?? sorted[0];
           setSelectedDl(hd);
-          setSourcesLoading(false);
         } else {
-          // No sources — try xcasper before embed
-          tryXcasperThenEmbed();
+          // No sources — silently fall back to embed player
+          setUseFallback(true);
         }
       })
       .catch(() => {
-        // API error — try xcasper before embed
-        tryXcasperThenEmbed();
-      });
-  }, [item.subjectId, season, episode, isTV, hasSubjectId, useFallback, item.title]);
+        // API error — silently fall back to embed player
+        setUseFallback(true);
+      })
+      .finally(() => setSourcesLoading(false));
+  }, [item.subjectId, season, episode, isTV, hasSubjectId, useFallback]);
 
   // Auto-lookup IMDB ID for Cineverse items that don't have one
   useEffect(() => {
@@ -162,12 +143,10 @@ export default function WatchModal({ item, onClose, initialSeason, initialEpisod
     };
   }, [season, episode, hasSubjectId, useFallback]);
 
-  // Auto-advance to next embed source if user hasn't interacted after load
+  // Auto-advance to next embed source if user hasn't interacted after 12s
   const handleEmbedLoad = useCallback(() => {
     setEmbedLoading(false);
     if (switchTimerRef.current) clearTimeout(switchTimerRef.current);
-    // If user clicks into the iframe within 3s, cancel (video is playing)
-    // Otherwise auto-try next source silently
     switchTimerRef.current = setTimeout(() => {
       if (document.activeElement !== iframeRef.current) {
         setEmbedIdx(prev => {
@@ -176,7 +155,7 @@ export default function WatchModal({ item, onClose, initialSeason, initialEpisod
         });
         setEmbedLoading(true);
       }
-    }, 3000);
+    }, 12000);
   }, []);
 
   useEffect(() => {
@@ -201,8 +180,7 @@ export default function WatchModal({ item, onClose, initialSeason, initialEpisod
     }
   }, [embedIdx]);
 
-  const useXcasperPlayer = !useFallback && xcasperLinks.length > 0 && downloads.length === 0;
-  const useDirectPlayer = hasSubjectId && !useFallback && (downloads.length > 0 || useXcasperPlayer);
+  const useDirectPlayer = hasSubjectId && !useFallback && downloads.length > 0;
   const mediaType = isTV ? "tv" : "movie";
   const embedId = resolvedImdbId ?? "";
   const iframeUrl = EMBED_SOURCES[embedIdx]?.(mediaType, embedId, season, episode);
@@ -210,13 +188,7 @@ export default function WatchModal({ item, onClose, initialSeason, initialEpisod
   const currentSeason = seasons.find(s => s.se === season);
   const maxEpisodes = currentSeason?.maxEp ?? 20;
   const enCaption = captions.find(c => c.lan === "en");
-
-  // Prefer Cineverse direct stream; fall back to xcasper stream
-  const videoSrc = selectedDl
-    ? streamProxyUrl(selectedDl.url)
-    : selectedXcasper
-      ? streamProxyUrl(selectedXcasper.url)
-      : null;
+  const videoSrc = selectedDl ? streamProxyUrl(selectedDl.url) : null;
 
   return (
     <div className="fixed inset-0 z-50 bg-black flex flex-col">
@@ -269,16 +241,20 @@ export default function WatchModal({ item, onClose, initialSeason, initialEpisod
         {/* Embed player */}
         {!useDirectPlayer && (
           <>
-            {embedLoading && (
+            {/* Show spinner while waiting for IMDB ID or iframe load */}
+            {(embedLoading || !embedId) && (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 z-10 pointer-events-none">
                 <div className="w-10 h-10 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
-                <p className="text-white/50 text-sm">Starting player...</p>
+                <p className="text-white/50 text-sm">
+                  {!embedId ? "Finding content…" : "Starting player…"}
+                </p>
               </div>
             )}
-            {embedId ? (
+            {/* Only mount iframe once we have a valid IMDB ID */}
+            {embedId && (
               <iframe
                 ref={iframeRef}
-                key={`${embedIdx}-${season}-${episode}`}
+                key={`${embedIdx}-${season}-${episode}-${embedId}`}
                 src={iframeUrl}
                 allowFullScreen
                 allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
@@ -286,11 +262,6 @@ export default function WatchModal({ item, onClose, initialSeason, initialEpisod
                 title={item.title}
                 onLoad={handleEmbedLoad}
               />
-            ) : (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 z-10">
-                <p className="text-5xl">🔒</p>
-                <p className="text-white/50 text-sm">No player available for this title.</p>
-              </div>
             )}
           </>
         )}
@@ -339,39 +310,6 @@ export default function WatchModal({ item, onClose, initialSeason, initialEpisod
                   )}
                 </div>
               )}
-              {/* Xcasper quality picker */}
-              {useXcasperPlayer && xcasperLinks.length > 1 && (
-                <div className="relative">
-                  <button
-                    onClick={() => setShowQuality(p => !p)}
-                    className="flex items-center gap-1.5 text-xs text-white/60 hover:text-white transition-colors px-2 py-1 rounded bg-white/5 hover:bg-white/10"
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                    {selectedXcasper?.quality ?? "Quality"}
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
-                  {showQuality && (
-                    <div className="absolute bottom-full mb-1 left-0 bg-[#1a1a1a] border border-white/10 rounded-lg overflow-hidden shadow-xl min-w-[140px]">
-                      {xcasperLinks.map((lnk, i) => (
-                        <button
-                          key={i}
-                          onClick={() => { setSelectedXcasper(lnk); setShowQuality(false); }}
-                          className={`w-full text-left px-3 py-2 text-xs transition-colors flex items-center justify-between gap-3 ${
-                            selectedXcasper?.url === lnk.url ? "bg-red-600/20 text-red-400" : "text-white/70 hover:bg-white/10"
-                          }`}
-                        >
-                          <span className="font-bold">{lnk.quality}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
               {embedId && (
                 <button
                   onClick={() => setUseFallback(true)}
@@ -386,27 +324,32 @@ export default function WatchModal({ item, onClose, initialSeason, initialEpisod
           {/* Embed player controls */}
           {!useDirectPlayer && (
             <>
+              {!embedId && (
+                <span className="text-white/30 text-xs animate-pulse">Finding content…</span>
+              )}
               {embedId && (
                 <>
-                  {embedLoading && (
-                    <span className="text-white/30 text-xs">Connecting to player...</span>
+                  <span className="text-white/25 text-xs flex-shrink-0">
+                    Player {embedIdx + 1}/{EMBED_SOURCES.length}
+                  </span>
+                  {embedIdx + 1 < EMBED_SOURCES.length && (
+                    <button
+                      onClick={tryNextEmbed}
+                      className="text-xs text-white/50 hover:text-white bg-white/8 hover:bg-white/15 transition-colors flex items-center gap-1.5 px-2.5 py-1 rounded"
+                      title="Switch to a different player"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                      Next Player
+                    </button>
                   )}
-                  <button
-                    onClick={tryNextEmbed}
-                    className="text-xs text-white/30 hover:text-white/70 transition-colors flex items-center gap-1"
-                    title="Switch to a different player"
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                    Not loading? Try another
-                  </button>
                   {hasSubjectId && (
                     <button
                       onClick={() => setUseFallback(false)}
-                      className="ml-auto text-xs text-green-400/70 hover:text-green-400 transition-colors"
+                      className="ml-auto text-xs text-green-400/60 hover:text-green-400 transition-colors"
                     >
-                      ↑ Use direct stream
+                      Use direct stream
                     </button>
                   )}
                 </>
