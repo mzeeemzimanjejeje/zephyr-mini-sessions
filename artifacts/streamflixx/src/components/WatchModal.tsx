@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { ContentItem } from "../data/content";
 import { useWatchHistory } from "../hooks/useWatchHistory";
 import { bwmSources, imdbSearch, BwmSource, BwmSubtitle } from "../api/bwm";
-import { bwmCache, imdbCache, BwmCacheEntry } from "../api/prefetch";
+import { bwmCache, imdbCache, bwmSubjectCache, BwmCacheEntry } from "../api/prefetch";
 
 interface Props {
   item: ContentItem;
@@ -114,17 +114,42 @@ export default function WatchModal({ item, onClose, initialSeason, initialEpisod
         setSources(sorted); setSubtitles(bwmResult.subtitles); setActiveSrc(sorted[0]);
         setMode("direct"); return;
       }
-    } else if (!finalImdbId) {
-      const imdbKey = `${item.title}:${item.type}`;
-      if (imdbCache.has(imdbKey)) {
-        finalImdbId = imdbCache.get(imdbKey) ?? undefined;
-      } else {
-        setResolveStep("Looking up title…");
-        const found = await withTimeout(imdbSearch(item.title, isTV ? "tvSeries" : "movie"), 4000);
-        imdbCache.set(imdbKey, found);
-        if (found) finalImdbId = found;
+    } else {
+      const searchKey = `${item.title}:${item.type}`;
+      const prefetchedSubjectId = bwmSubjectCache.get(searchKey);
+      if (prefetchedSubjectId) {
+        const bwmKey = `${prefetchedSubjectId}:${isTV ? `${season}:${episode}` : ""}`;
+        let bwmResult: BwmCacheEntry | null;
+        if (bwmCache.has(bwmKey)) {
+          bwmResult = bwmCache.get(bwmKey)!;
+        } else {
+          setResolveStep("Fetching direct stream…");
+          bwmResult = await withTimeout(
+            bwmSources(prefetchedSubjectId, isTV ? season : undefined, isTV ? episode : undefined)
+              .then(r => r && r.results.length > 0 ? { sources: r.results, subtitles: r.subtitles } : null),
+            4500,
+          );
+          bwmCache.set(bwmKey, bwmResult);
+        }
+        if (bwmResult) {
+          const sorted = qualitySort(bwmResult.sources);
+          setSources(sorted); setSubtitles(bwmResult.subtitles); setActiveSrc(sorted[0]);
+          setMode("direct"); return;
+        }
       }
-      if (finalImdbId) setResolvedImdbId(finalImdbId);
+
+      if (!finalImdbId) {
+        const imdbKey = `${item.title}:${item.type}`;
+        if (imdbCache.has(imdbKey)) {
+          finalImdbId = imdbCache.get(imdbKey) ?? undefined;
+        } else {
+          setResolveStep("Looking up title…");
+          const found = await withTimeout(imdbSearch(item.title, isTV ? "tvSeries" : "movie"), 4000);
+          imdbCache.set(imdbKey, found);
+          if (found) finalImdbId = found;
+        }
+        if (finalImdbId) setResolvedImdbId(finalImdbId);
+      }
     }
 
     if (finalImdbId) { setEmbedSrcIdx(0); setEmbedPhase("loading"); setMode("embed"); return; }
