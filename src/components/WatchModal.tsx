@@ -4,6 +4,7 @@ import { useWatchHistory } from "../hooks/useWatchHistory";
 import {
   fetchCineverseSources,
   fetchCineverseInfo,
+  fetchImdbId,
   CineverseDownload,
   CineverseCaption,
   CinevSeason,
@@ -23,11 +24,19 @@ const EMBED_SOURCES = [
   (t: string, id: string, s: number, e: number) =>
     t === "tv" ? `https://vidsrc.xyz/embed/tv/${id}/${s}/${e}` : `https://vidsrc.xyz/embed/movie/${id}`,
   (t: string, id: string, s: number, e: number) =>
+    t === "tv" ? `https://embed.su/embed/tv/${id}/${s}/${e}` : `https://embed.su/embed/movie/${id}`,
+  (t: string, id: string, s: number, e: number) =>
     t === "tv" ? `https://moviesapi.club/tv/${id}-${s}-${e}` : `https://moviesapi.club/movie/${id}`,
   (t: string, id: string, s: number, e: number) =>
     t === "tv" ? `https://vidsrc.to/embed/tv/${id}?season=${s}&episode=${e}` : `https://vidsrc.to/embed/movie/${id}`,
   (t: string, id: string, s: number, e: number) =>
+    t === "tv" ? `https://player.videasy.net/tv/${id}/${s}/${e}` : `https://player.videasy.net/movie/${id}`,
+  (t: string, id: string, s: number, e: number) =>
     t === "tv" ? `https://vidsrc.mov/embed/tv/${id}/${s}/${e}` : `https://vidsrc.mov/embed/movie/${id}`,
+  (t: string, id: string, s: number, e: number) =>
+    t === "tv" ? `https://2embed.cc/embedtv/${id}&s=${s}&e=${e}` : `https://2embed.cc/embed/${id}`,
+  (t: string, id: string, s: number, e: number) =>
+    t === "tv" ? `https://vidlink.pro/tv/${id}/${s}/${e}` : `https://vidlink.pro/movie/${id}`,
 ];
 
 export default function WatchModal({ item, onClose, initialSeason, initialEpisode }: Props) {
@@ -44,6 +53,7 @@ export default function WatchModal({ item, onClose, initialSeason, initialEpisod
   const [sourcesLoading, setSourcesLoading] = useState(false);
   const [useFallback, setUseFallback] = useState(false);
   const [showQuality, setShowQuality] = useState(false);
+  const [resolvedImdbId, setResolvedImdbId] = useState<string | null>(null);
 
   const [embedIdx, setEmbedIdx] = useState(0);
   const [embedLoading, setEmbedLoading] = useState(true);
@@ -96,6 +106,12 @@ export default function WatchModal({ item, onClose, initialSeason, initialEpisod
       .finally(() => setSourcesLoading(false));
   }, [item.subjectId, season, episode, isTV, hasSubjectId, useFallback]);
 
+  // Auto-lookup IMDB ID for Cineverse items that don't have one
+  useEffect(() => {
+    if (item.imdbId) { setResolvedImdbId(item.imdbId); return; }
+    fetchImdbId(item.title, item.year).then(id => { if (id) setResolvedImdbId(id); });
+  }, [item.imdbId, item.title, item.year]);
+
   useEffect(() => {
     if (!hasSubjectId || useFallback) return;
     fetchCineverseInfo(item.subjectId!)
@@ -126,7 +142,7 @@ export default function WatchModal({ item, onClose, initialSeason, initialEpisod
   const handleEmbedLoad = useCallback(() => {
     setEmbedLoading(false);
     if (switchTimerRef.current) clearTimeout(switchTimerRef.current);
-    // If user clicks into the iframe within 5s, cancel (video is playing)
+    // If user clicks into the iframe within 3s, cancel (video is playing)
     // Otherwise auto-try next source silently
     switchTimerRef.current = setTimeout(() => {
       if (document.activeElement !== iframeRef.current) {
@@ -136,7 +152,7 @@ export default function WatchModal({ item, onClose, initialSeason, initialEpisod
         });
         setEmbedLoading(true);
       }
-    }, 5000);
+    }, 3000);
   }, []);
 
   useEffect(() => {
@@ -163,7 +179,7 @@ export default function WatchModal({ item, onClose, initialSeason, initialEpisod
 
   const useDirectPlayer = hasSubjectId && !useFallback;
   const mediaType = isTV ? "tv" : "movie";
-  const embedId = item.imdbId ?? "";
+  const embedId = resolvedImdbId ?? "";
   const iframeUrl = EMBED_SOURCES[embedIdx]?.(mediaType, embedId, season, episode);
 
   const currentSeason = seasons.find(s => s.se === season);

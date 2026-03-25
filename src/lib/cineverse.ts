@@ -189,6 +189,29 @@ function formatVotes(n: number): string {
   return String(n);
 }
 
+export async function fetchImdbId(title: string, year?: number): Promise<string | null> {
+  try {
+    const query = title.toLowerCase().replace(/[^a-z0-9 ]/g, "").trim();
+    const firstChar = query[0] ?? "a";
+    const encoded = encodeURIComponent(query);
+    const res = await fetch(
+      `https://v3.sg.media-imdb.com/suggestion/${firstChar}/${encoded}.json`,
+      { headers: { Accept: "application/json" } }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    const results: Array<{ id: string; l: string; y?: number; qid?: string }> = data.d ?? [];
+    const match = results.find(r => {
+      if (!r.id?.startsWith("tt")) return false;
+      if (year && r.y && Math.abs(r.y - year) > 1) return false;
+      return true;
+    });
+    return match?.id ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export function resolutionLabel(r: number): string {
   if (r >= 1080) return "1080p";
   if (r >= 720) return "720p";
