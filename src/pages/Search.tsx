@@ -32,8 +32,13 @@ export default function Search() {
   const apiItems = apiData?.items ?? [];
   const hasMore = apiData?.hasMore ?? false;
 
+  const deduped = apiItems.filter(
+    (item: any, idx: number, arr: any[]) =>
+      arr.findIndex((x: any) => x.subjectId === item.subjectId) === idx
+  );
+
   const results = apiData
-    ? apiItems.filter((i: any) => i.subjectType !== 6).map(cineverseItemToContentItem)
+    ? deduped.filter((i: any) => i.subjectType !== 6).map(cineverseItemToContentItem)
     : staticFallback;
 
   const handleFilterChange = (f: Filter) => {
