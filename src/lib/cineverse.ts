@@ -189,28 +189,97 @@ function formatVotes(n: number): string {
   return String(n);
 }
 
+const OMDB_KEY = "742b2d09";
+const XCASPER_BASE = "https://movieapi.xcasper.space/api";
+const XCASPER_HEADERS: Record<string, string> = {
+  "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Mobile Safari/537.36",
+  "Referer": "https://www.davex-moviezone.zone.id/",
+  "Origin": "https://www.davex-moviezone.zone.id",
+  "Accept": "application/json",
+};
+
 export async function fetchImdbId(title: string, year?: number): Promise<string | null> {
+  // Primary: OMDB API (exact match by title)
+  try {
+    const type = ""; // let OMDB decide
+    const qs = new URLSearchParams({ t: title, apikey: OMDB_KEY });
+    if (year) qs.set("y", String(year));
+    const res = await fetch(`https://www.omdbapi.com/?${qs}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.imdbID?.startsWith("tt")) return data.imdbID;
+    }
+  } catch { /* fall through */ }
+
+  // Fallback: IMDB suggestions API
   try {
     const query = title.toLowerCase().replace(/[^a-z0-9 ]/g, "").trim();
     const firstChar = query[0] ?? "a";
-    const encoded = encodeURIComponent(query);
     const res = await fetch(
-      `https://v3.sg.media-imdb.com/suggestion/${firstChar}/${encoded}.json`,
+      `https://v3.sg.media-imdb.com/suggestion/${firstChar}/${encodeURIComponent(query)}.json`,
       { headers: { Accept: "application/json" } }
     );
-    if (!res.ok) return null;
-    const data = await res.json();
-    const results: Array<{ id: string; l: string; y?: number; qid?: string }> = data.d ?? [];
-    const match = results.find(r => {
-      if (!r.id?.startsWith("tt")) return false;
-      if (year && r.y && Math.abs(r.y - year) > 1) return false;
-      return true;
-    });
-    return match?.id ?? null;
+    if (res.ok) {
+      const data = await res.json();
+      const results: Array<{ id: string; y?: number }> = data.d ?? [];
+      const match = results.find(r => {
+        if (!r.id?.startsWith("tt")) return false;
+        if (year && r.y && Math.abs(r.y - year) > 1) return false;
+        return true;
+      });
+      if (match?.id) return match.id;
+    }
+  } catch { /* fall through */ }
+
+  return null;
+}
+
+export interface XcasperStreamLink {
+  quality: string;
+  url: string;
+}
+
+export async function fetchXcasperSources(
+  title: string,
+  type: "movie" | "tv",
+  season?: number,
+  episode?: number
+): Promise<XcasperStreamLink[]> {
+  try {
+    // Step 1: Search ShowBox for the title
+    const searchRes = await fetch(
+      `${XCASPER_BASE}/showbox/search?${new URLSearchParams({ keyword: title, type })}`,
+      { headers: XCASPER_HEADERS, signal: AbortSignal.timeout(8000) }
+    );
+    if (!searchRes.ok) return [];
+    const searchData = await searchRes.json();
+    const results: Array<{ id: string | number }> = searchData.data ?? [];
+    if (results.length === 0) return [];
+
+    const showboxId = String(results[0].id);
+
+    // Step 2: Get stream links for that ShowBox ID
+    const streamParams: Record<string, string> = { id: showboxId, type };
+    if (type === "tv" && season != null && episode != null) {
+      streamParams.season = String(season);
+      streamParams.episode = String(episode);
+    }
+    const streamRes = await fetch(
+      `${XCASPER_BASE}/stream?${new URLSearchParams(streamParams)}`,
+      { headers: XCASPER_HEADERS, signal: AbortSignal.timeout(10000) }
+    );
+    if (!streamRes.ok) return [];
+    const streamData = await streamRes.json();
+    const links: Array<{ quality?: string; url: string }> = streamData.data?.links ?? [];
+    return links
+      .filter(l => l.url)
+      .map(l => ({ quality: l.quality ?? "Auto", url: l.url }));
   } catch {
-    return null;
+    return [];
   }
 }
+
+export const STREAM_PROXY_ALT = "https://ab-proxy1.abrahamdw882.workers.dev/?u=";
 
 export function resolutionLabel(r: number): string {
   if (r >= 1080) return "1080p";

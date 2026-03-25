@@ -5,6 +5,8 @@ import {
   fetchCineverseSources,
   fetchCineverseInfo,
   fetchImdbId,
+  fetchXcasperSources,
+  XcasperStreamLink,
   CineverseDownload,
   CineverseCaption,
   CinevSeason,
@@ -54,6 +56,8 @@ export default function WatchModal({ item, onClose, initialSeason, initialEpisod
   const [useFallback, setUseFallback] = useState(false);
   const [showQuality, setShowQuality] = useState(false);
   const [resolvedImdbId, setResolvedImdbId] = useState<string | null>(null);
+  const [xcasperLinks, setXcasperLinks] = useState<XcasperStreamLink[]>([]);
+  const [selectedXcasper, setSelectedXcasper] = useState<XcasperStreamLink | null>(null);
 
   const [embedIdx, setEmbedIdx] = useState(0);
   const [embedLoading, setEmbedLoading] = useState(true);
@@ -82,9 +86,29 @@ export default function WatchModal({ item, onClose, initialSeason, initialEpisod
     setSourcesError(null);
     setDownloads([]);
     setSelectedDl(null);
+    setXcasperLinks([]);
+    setSelectedXcasper(null);
 
     const s = isTV ? season : undefined;
     const e = isTV ? episode : undefined;
+
+    const tryXcasperThenEmbed = async () => {
+      const xcType: "movie" | "tv" = isTV ? "tv" : "movie";
+      const links = await fetchXcasperSources(item.title, xcType, s, e);
+      if (links.length > 0) {
+        // Sort: prefer highest quality first
+        const sorted = [...links].sort((a, b) => {
+          const qA = parseInt(a.quality) || 0;
+          const qB = parseInt(b.quality) || 0;
+          return qB - qA;
+        });
+        setXcasperLinks(sorted);
+        setSelectedXcasper(sorted.find(l => (parseInt(l.quality) || 0) >= 720) ?? sorted[0]);
+      } else {
+        setUseFallback(true);
+      }
+      setSourcesLoading(false);
+    };
 
     fetchCineverseSources(item.subjectId!, s, e)
       .then(data => {
@@ -94,17 +118,17 @@ export default function WatchModal({ item, onClose, initialSeason, initialEpisod
         if (sorted.length > 0) {
           const hd = sorted.find(d => d.resolution >= 720) ?? sorted[0];
           setSelectedDl(hd);
+          setSourcesLoading(false);
         } else {
-          // No sources — silently fall back to embed player
-          setUseFallback(true);
+          // No sources — try xcasper before embed
+          tryXcasperThenEmbed();
         }
       })
       .catch(() => {
-        // API error — silently fall back to embed player
-        setUseFallback(true);
-      })
-      .finally(() => setSourcesLoading(false));
-  }, [item.subjectId, season, episode, isTV, hasSubjectId, useFallback]);
+        // API error — try xcasper before embed
+        tryXcasperThenEmbed();
+      });
+  }, [item.subjectId, season, episode, isTV, hasSubjectId, useFallback, item.title]);
 
   // Auto-lookup IMDB ID for Cineverse items that don't have one
   useEffect(() => {
@@ -177,7 +201,8 @@ export default function WatchModal({ item, onClose, initialSeason, initialEpisod
     }
   }, [embedIdx]);
 
-  const useDirectPlayer = hasSubjectId && !useFallback;
+  const useXcasperPlayer = !useFallback && xcasperLinks.length > 0 && downloads.length === 0;
+  const useDirectPlayer = hasSubjectId && !useFallback && (downloads.length > 0 || useXcasperPlayer);
   const mediaType = isTV ? "tv" : "movie";
   const embedId = resolvedImdbId ?? "";
   const iframeUrl = EMBED_SOURCES[embedIdx]?.(mediaType, embedId, season, episode);
@@ -185,7 +210,13 @@ export default function WatchModal({ item, onClose, initialSeason, initialEpisod
   const currentSeason = seasons.find(s => s.se === season);
   const maxEpisodes = currentSeason?.maxEp ?? 20;
   const enCaption = captions.find(c => c.lan === "en");
-  const videoSrc = selectedDl ? streamProxyUrl(selectedDl.url) : null;
+
+  // Prefer Cineverse direct stream; fall back to xcasper stream
+  const videoSrc = selectedDl
+    ? streamProxyUrl(selectedDl.url)
+    : selectedXcasper
+      ? streamProxyUrl(selectedXcasper.url)
+      : null;
 
   return (
     <div className="fixed inset-0 z-50 bg-black flex flex-col">
@@ -274,6 +305,7 @@ export default function WatchModal({ item, onClose, initialSeason, initialEpisod
           {/* Direct stream controls */}
           {useDirectPlayer && (
             <>
+              {/* Cineverse quality picker */}
               {downloads.length > 1 && (
                 <div className="relative">
                   <button
@@ -301,6 +333,39 @@ export default function WatchModal({ item, onClose, initialSeason, initialEpisod
                         >
                           <span className="font-bold">{resolutionLabel(dl.resolution)}</span>
                           {dl.size && <span className="opacity-50">{fileSizeMB(dl.size)}</span>}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              {/* Xcasper quality picker */}
+              {useXcasperPlayer && xcasperLinks.length > 1 && (
+                <div className="relative">
+                  <button
+                    onClick={() => setShowQuality(p => !p)}
+                    className="flex items-center gap-1.5 text-xs text-white/60 hover:text-white transition-colors px-2 py-1 rounded bg-white/5 hover:bg-white/10"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    {selectedXcasper?.quality ?? "Quality"}
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                  {showQuality && (
+                    <div className="absolute bottom-full mb-1 left-0 bg-[#1a1a1a] border border-white/10 rounded-lg overflow-hidden shadow-xl min-w-[140px]">
+                      {xcasperLinks.map((lnk, i) => (
+                        <button
+                          key={i}
+                          onClick={() => { setSelectedXcasper(lnk); setShowQuality(false); }}
+                          className={`w-full text-left px-3 py-2 text-xs transition-colors flex items-center justify-between gap-3 ${
+                            selectedXcasper?.url === lnk.url ? "bg-red-600/20 text-red-400" : "text-white/70 hover:bg-white/10"
+                          }`}
+                        >
+                          <span className="font-bold">{lnk.quality}</span>
                         </button>
                       ))}
                     </div>
