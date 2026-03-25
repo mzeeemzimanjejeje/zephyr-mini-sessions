@@ -122,6 +122,23 @@ export default function WatchModal({ item, onClose, initialSeason, initialEpisod
     };
   }, [season, episode, hasSubjectId, useFallback]);
 
+  // Auto-advance to next embed source if user hasn't interacted after load
+  const handleEmbedLoad = useCallback(() => {
+    setEmbedLoading(false);
+    if (switchTimerRef.current) clearTimeout(switchTimerRef.current);
+    // If user clicks into the iframe within 5s, cancel (video is playing)
+    // Otherwise auto-try next source silently
+    switchTimerRef.current = setTimeout(() => {
+      if (document.activeElement !== iframeRef.current) {
+        setEmbedIdx(prev => {
+          const next = prev + 1;
+          return next < EMBED_SOURCES.length ? next : prev;
+        });
+        setEmbedLoading(true);
+      }
+    }, 5000);
+  }, []);
+
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     document.addEventListener("keydown", handleKey);
@@ -220,7 +237,7 @@ export default function WatchModal({ item, onClose, initialSeason, initialEpisod
                 allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
                 className="w-full h-full border-0"
                 title={item.title}
-                onLoad={() => setEmbedLoading(false)}
+                onLoad={handleEmbedLoad}
               />
             ) : (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 z-10">
