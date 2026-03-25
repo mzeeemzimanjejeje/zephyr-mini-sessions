@@ -5,12 +5,13 @@ on:
     branches: [main]
     paths:
       - 'mobile/**'
+      - 'src/**'
   workflow_dispatch:
 
 jobs:
   build:
-    name: Build APK with EAS
-    runs-on: ubuntu-latest
+    name: Build APK
+    runs-on: macos-latest
 
     steps:
       - name: Checkout
@@ -20,43 +21,49 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
-          cache-dependency-path: mobile/package-lock.json
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
 
       - name: Install mobile dependencies
         run: cd mobile && npm install
 
-      - name: Setup EAS
-        uses: expo/expo-github-action@v8
-        with:
-          eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
+      - name: Install root dependencies (for shared src/)
+        run: npm install --prefix . || true
 
-      - name: Build APK
-        run: cd mobile && eas build --platform android --profile preview --non-interactive
+      - name: Generate Android native project
+        run: cd mobile && npx expo prebuild --platform android --clean --no-install
         env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EXPO_NO_TELEMETRY: 1
 
-      - name: Download built APK
+      - name: Make gradlew executable
+        run: chmod +x mobile/android/gradlew
+
+      - name: Build debug APK
+        run: cd mobile/android && ./gradlew assembleDebug --no-daemon
+        env:
+          ANDROID_HOME: ${{ env.ANDROID_HOME }}
+
+      - name: Rename APK
         run: |
-          URL=$(cd mobile && eas build:list --platform android --limit 1 --json --non-interactive | python3 -c "import sys,json; builds=json.load(sys.stdin); print(builds[0]['artifacts']['buildUrl'])")
-          echo "APK URL: $URL"
-          curl -L "$URL" -o courtney-ent.apk
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          mkdir -p output
+          cp mobile/android/app/build/outputs/apk/debug/app-debug.apk output/courtney-ent.apk
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: apk-latest
-          name: Courtney ENT — Latest APK
+          name: Courtney ENT — Android App
           body: |
-            ## Courtney ENT Android App
+            ## Download Courtney ENT for Android
 
-            Tap **courtney-ent.apk** below to download and install directly on your Android phone.
+            Tap **courtney-ent.apk** to install directly on your phone.
 
-            > Enable "Install unknown apps" in your Android settings if prompted.
-          files: courtney-ent.apk
+            > If prompted, enable **"Install from unknown sources"** in your Android settings.
+          files: output/courtney-ent.apk
           make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

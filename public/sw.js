@@ -1,35 +1,34 @@
-const CACHE = "courtneys-ent-v1";
+const CACHE = "courtney-ent-v2";
 
-// App shell files to cache immediately on install
-const SHELL = [
-  "/",
-  "/src/main.tsx",
-];
-
-self.addEventListener("install", e => {
+self.addEventListener("install", (e) => {
   self.skipWaiting();
   e.waitUntil(
-    caches.open(CACHE).then(c => c.addAll(SHELL).catch(() => {}))
+    caches.open(CACHE).then((c) =>
+      c.addAll(["/", "/icon-192.png", "/icon-512.png"]).catch(() => {})
+    )
   );
 });
 
-self.addEventListener("activate", e => {
+self.addEventListener("activate", (e) => {
   e.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
+    caches.keys().then((keys) =>
+      Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
     )
   );
   self.clients.claim();
 });
 
-self.addEventListener("fetch", e => {
+self.addEventListener("fetch", (e) => {
   const { request } = e;
   const url = new URL(request.url);
 
-  // Cache-first for images from the CDN
-  if (url.hostname === "pbcdnw.aoneroom.com" || url.hostname === "images.metahub.space") {
+  // Cache images from CDN
+  if (
+    url.hostname === "pbcdnw.aoneroom.com" ||
+    url.hostname === "images.metahub.space"
+  ) {
     e.respondWith(
-      caches.open(CACHE).then(async cache => {
+      caches.open(CACHE).then(async (cache) => {
         const cached = await cache.match(request);
         if (cached) return cached;
         const fresh = await fetch(request).catch(() => null);
@@ -40,7 +39,7 @@ self.addEventListener("fetch", e => {
     return;
   }
 
-  // Network-first for navigation (HTML pages) — keeps app up to date
+  // Network-first for navigation — keeps app up to date
   if (request.mode === "navigate") {
     e.respondWith(
       fetch(request).catch(async () => {
@@ -50,6 +49,4 @@ self.addEventListener("fetch", e => {
     );
     return;
   }
-
-  // Default: network only (JS, CSS, API calls)
 });
