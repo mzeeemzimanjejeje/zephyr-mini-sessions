@@ -2,6 +2,7 @@ import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import ErrorBoundary from "./components/ErrorBoundary";
+import AIChatWidget from "./components/AIChatWidget";
 
 const Home       = lazy(() => import("./pages/Home"));
 const Genres     = lazy(() => import("./pages/Genres"));
@@ -34,6 +35,7 @@ export default function App() {
             <Route path="/search"          element={<Search />} />
           </Routes>
         </Suspense>
+        <AIChatWidget />
       </BrowserRouter>
     </ErrorBoundary>
   );
