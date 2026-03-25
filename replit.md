@@ -1,4 +1,4 @@
-# StreamFlixx
+# Courtney ENT
 
 A modern Netflix-style video streaming platform built with React and TypeScript, enhanced with live data from the Cineverse/MovieBox API.
 
@@ -77,7 +77,7 @@ Located in `mobile/` — Expo SDK 55 + React Native + Expo Router.
 **Workflow:** `Courtney ENT Mobile` runs on **port 5000** (webview/preview pane)  
 `cd mobile && CI=1 npx expo start --port 5000 --web`
 
-**StreamFlixx runs on port 3000** (switch in the port selector to see it)
+**Courtney ENT runs on port 3000** (switch in the port selector to see it)
 
 **Screens:**
 - Home — Hero banner + trending rows from Cineverse API
@@ -91,9 +91,9 @@ Located in `mobile/` — Expo SDK 55 + React Native + Expo Router.
 **PWA Support:** `mobile/app.json` has full `web` PWA config (standalone display, theme #e50914).  
 Service worker at `mobile/web/sw.js` caches the app for offline use.
 
-## App Banner (StreamFlixx Website)
+## App Banner (Courtney ENT Website)
 
-`src/components/AppBanner.tsx` — always-visible sticky bar at the very top of the StreamFlixx website.
+`src/components/AppBanner.tsx` — always-visible sticky bar at the very top of the Courtney ENT website.
 - Shows CE logo + "Courtney ENT" name + tagline
 - "Get App" button opens the Courtney ENT web app (or triggers PWA install prompt if available)
 - Dismiss button (X) — stores dismissal in localStorage

@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 
 const MOBILE_APP_URL =
-  (import.meta.env.VITE_MOBILE_APP_URL as string) || "";
+  (import.meta.env.VITE_MOBILE_APP_URL as string) ||
+  "https://movie-site.courtneytech.xyz";
 
 export default function AppBanner() {
   const [visible, setVisible] = useState(false);

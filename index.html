@@ -27,9 +27,14 @@
       fetchpriority="high"
     />
 
-    <!-- PWA theme -->
-    <meta name="theme-color" content="#141414" />
+    <!-- PWA -->
+    <meta name="theme-color" content="#e50914" />
     <meta name="description" content="Courtney's ENT — Stream movies and series" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Courtney's ENT" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
   </head>
   <body>
     <div id="root"></div>
@@ -63,6 +68,13 @@
       }, true);
     </script>
 
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", function () {
+          navigator.serviceWorker.register("/sw.js").catch(function () {});
+        });
+      }
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

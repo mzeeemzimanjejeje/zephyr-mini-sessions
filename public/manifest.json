@@ -1,0 +1,18 @@
+{
+  "name": "Courtney's ENT",
+  "short_name": "CE",
+  "description": "Stream movies and series — free, no ads",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#141414",
+  "theme_color": "#e50914",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
