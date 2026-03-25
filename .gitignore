@@ -5,3 +5,5 @@ dist/
 mobile/node_modules/
 mobile/.expo/
 mobile/dist/
+.env.local
+.env.*.local
