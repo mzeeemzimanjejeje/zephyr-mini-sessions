@@ -9,6 +9,7 @@ import {
   CinevSeason,
   resolutionLabel,
   fileSizeMB,
+  streamProxyUrl,
 } from "../lib/cineverse";
 
 interface Props {
@@ -18,18 +19,16 @@ interface Props {
   initialEpisode?: number;
 }
 
-const IFRAME_SOURCES = [
-  { name: "S1", build: (t: string, id: string, s: number, e: number) =>
-      t === "tv" ? `https://vidsrc.xyz/embed/tv/${id}/${s}/${e}` : `https://vidsrc.xyz/embed/movie/${id}` },
-  { name: "S2", build: (t: string, id: string, s: number, e: number) =>
-      t === "tv" ? `https://moviesapi.club/tv/${id}-${s}-${e}` : `https://moviesapi.club/movie/${id}` },
-  { name: "S3", build: (t: string, id: string, s: number, e: number) =>
-      t === "tv" ? `https://vidsrc.to/embed/tv/${id}?season=${s}&episode=${e}` : `https://vidsrc.to/embed/movie/${id}` },
-  { name: "S4", build: (t: string, id: string, s: number, e: number) =>
-      t === "tv" ? `https://vidsrc.mov/embed/tv/${id}/${s}/${e}` : `https://vidsrc.mov/embed/movie/${id}` },
+const EMBED_SOURCES = [
+  (t: string, id: string, s: number, e: number) =>
+    t === "tv" ? `https://vidsrc.xyz/embed/tv/${id}/${s}/${e}` : `https://vidsrc.xyz/embed/movie/${id}`,
+  (t: string, id: string, s: number, e: number) =>
+    t === "tv" ? `https://moviesapi.club/tv/${id}-${s}-${e}` : `https://moviesapi.club/movie/${id}`,
+  (t: string, id: string, s: number, e: number) =>
+    t === "tv" ? `https://vidsrc.to/embed/tv/${id}?season=${s}&episode=${e}` : `https://vidsrc.to/embed/movie/${id}`,
+  (t: string, id: string, s: number, e: number) =>
+    t === "tv" ? `https://vidsrc.mov/embed/tv/${id}/${s}/${e}` : `https://vidsrc.mov/embed/movie/${id}`,
 ];
-
-const AUTO_SWITCH_MS = 8000;
 
 export default function WatchModal({ item, onClose, initialSeason, initialEpisode }: Props) {
   const isTV = item.type === "Series";
@@ -45,22 +44,16 @@ export default function WatchModal({ item, onClose, initialSeason, initialEpisod
   const [sourcesLoading, setSourcesLoading] = useState(false);
   const [sourcesError, setSourcesError] = useState<string | null>(null);
   const [useFallback, setUseFallback] = useState(false);
+  const [showQuality, setShowQuality] = useState(false);
 
-  const [srcIdx, setSrcIdx] = useState(0);
-  const [phase, setPhase] = useState<"loading" | "playing" | "switching" | "failed">("loading");
-  const [countdown, setCountdown] = useState(AUTO_SWITCH_MS / 1000);
-  const playingRef = useRef(false);
+  const [embedIdx, setEmbedIdx] = useState(0);
+  const [embedLoading, setEmbedLoading] = useState(true);
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const switchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const { recordWatch, updateProgress } = useWatchHistory();
   const startTimeRef = useRef(Date.now());
   const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  function clearAll() {
-    timersRef.current.forEach(clearTimeout);
-    timersRef.current = [];
-    if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
-  }
 
   useEffect(() => {
     recordWatch(item, isTV ? season : undefined, isTV ? episode : undefined);
@@ -96,7 +89,7 @@ export default function WatchModal({ item, onClose, initialSeason, initialEpisod
           setSourcesError("No video files available for this title.");
         }
       })
-      .catch(err => setSourcesError(`Failed to load video: ${err.message}`))
+      .catch(err => setSourcesError(`Unable to load video: ${err.message}`))
       .finally(() => setSourcesLoading(false));
   }, [item.subjectId, season, episode, isTV, hasSubjectId, useFallback]);
 
@@ -109,40 +102,22 @@ export default function WatchModal({ item, onClose, initialSeason, initialEpisod
 
   useEffect(() => {
     if (hasSubjectId && !useFallback) return;
-    playingRef.current = false;
-    setPhase("loading");
-    setCountdown(AUTO_SWITCH_MS / 1000);
-    clearAll();
+    setEmbedLoading(true);
+    setEmbedIdx(0);
+    if (switchTimerRef.current) clearTimeout(switchTimerRef.current);
 
-    const tick = setInterval(() => setCountdown(c => Math.max(0, c - 1)), 1000);
-    timersRef.current.push(tick as unknown as ReturnType<typeof setTimeout>);
-
-    const auto = setTimeout(() => {
-      if (!playingRef.current) {
-        const next = srcIdx + 1;
-        if (next >= IFRAME_SOURCES.length) { setPhase("failed"); return; }
-        setPhase("switching");
-        const t = setTimeout(() => { setSrcIdx(next); setPhase("loading"); setCountdown(AUTO_SWITCH_MS / 1000); }, 700);
-        timersRef.current.push(t);
-      }
-    }, AUTO_SWITCH_MS);
-    timersRef.current.push(auto);
-
-    return clearAll;
-  }, [srcIdx, season, episode, hasSubjectId, useFallback]);
-
-  useEffect(() => {
-    if (hasSubjectId && !useFallback) return;
-    const onBlur = () => {
-      if (document.activeElement === iframeRef.current && !playingRef.current) {
-        playingRef.current = true;
-        clearAll();
-        setPhase("playing");
+    const onFocus = () => {
+      if (document.activeElement === iframeRef.current) {
+        setEmbedLoading(false);
+        if (switchTimerRef.current) clearTimeout(switchTimerRef.current);
       }
     };
-    window.addEventListener("blur", onBlur);
-    return () => window.removeEventListener("blur", onBlur);
-  }, [hasSubjectId, useFallback]);
+    window.addEventListener("blur", onFocus);
+    return () => {
+      window.removeEventListener("blur", onFocus);
+      if (switchTimerRef.current) clearTimeout(switchTimerRef.current);
+    };
+  }, [season, episode, hasSubjectId, useFallback]);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -155,72 +130,78 @@ export default function WatchModal({ item, onClose, initialSeason, initialEpisod
   }, [onClose]);
 
   const goEpisode = useCallback((s: number, e: number) => {
-    setSeason(s); setEpisode(e); setSrcIdx(0);
+    setSeason(s); setEpisode(e); setEmbedIdx(0);
   }, []);
+
+  const tryNextEmbed = useCallback(() => {
+    const next = embedIdx + 1;
+    if (next < EMBED_SOURCES.length) {
+      setEmbedLoading(true);
+      setEmbedIdx(next);
+    }
+  }, [embedIdx]);
 
   const useDirectPlayer = hasSubjectId && !useFallback;
   const mediaType = isTV ? "tv" : "movie";
   const embedId = item.imdbId ?? "";
-  const iframeUrl = IFRAME_SOURCES[srcIdx]?.build(mediaType, embedId, season, episode);
+  const iframeUrl = EMBED_SOURCES[embedIdx]?.(mediaType, embedId, season, episode);
 
   const currentSeason = seasons.find(s => s.se === season);
   const maxEpisodes = currentSeason?.maxEp ?? 20;
   const enCaption = captions.find(c => c.lan === "en");
+  const videoSrc = selectedDl ? streamProxyUrl(selectedDl.url) : null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/95 flex flex-col">
+    <div className="fixed inset-0 z-50 bg-black flex flex-col">
 
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 flex-shrink-0 border-b border-white/10">
-        <div className="flex items-center gap-3 min-w-0">
-          <h2 className="text-white font-bold text-sm md:text-base truncate">{item.title}</h2>
-          {useDirectPlayer && (
-            <span className="text-xs bg-green-600/20 text-green-400 border border-green-600/30 px-2 py-0.5 rounded font-medium flex-shrink-0">
-              Direct Stream
-            </span>
-          )}
-          {isTV && <span className="text-white/50 text-sm flex-shrink-0">S{season} E{episode}</span>}
+      <div className="flex items-center justify-between px-4 py-2.5 flex-shrink-0 bg-[#0d0d0d] border-b border-white/10">
+        <div className="flex items-center gap-2 min-w-0">
+          <h2 className="text-white font-semibold text-sm truncate">{item.title}</h2>
+          {isTV && <span className="text-white/40 text-xs flex-shrink-0">· S{season} E{episode}</span>}
         </div>
-        <button onClick={onClose} className="text-white/60 hover:text-white transition-colors flex-shrink-0 ml-4">
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <button onClick={onClose} className="text-white/50 hover:text-white transition-colors flex-shrink-0 ml-4 p-1">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
       </div>
 
-      {/* Video area */}
+      {/* Player */}
       <div className="flex-1 min-h-0 relative bg-black">
-        {useDirectPlayer ? (
+
+        {/* Direct stream player */}
+        {useDirectPlayer && (
           <>
             {sourcesLoading && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 z-10">
                 <div className="w-10 h-10 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
-                <p className="text-white/60 text-sm">Loading video...</p>
+                <p className="text-white/50 text-sm">Loading video...</p>
               </div>
             )}
             {sourcesError && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-8">
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-8 z-10">
                 <p className="text-4xl">⚠️</p>
-                <p className="text-white/70 text-center text-sm">{sourcesError}</p>
+                <p className="text-white/60 text-center text-sm">{sourcesError}</p>
                 {embedId && (
-                  <button
-                    onClick={() => setUseFallback(true)}
-                    className="text-red-400 hover:text-red-300 text-sm underline"
-                  >
-                    Try embed player instead
+                  <button onClick={() => setUseFallback(true)}
+                    className="bg-red-600 hover:bg-red-700 text-white text-sm px-5 py-2 rounded-lg transition-colors">
+                    Try another player
                   </button>
                 )}
               </div>
             )}
-            {!sourcesLoading && selectedDl && (
+            {!sourcesLoading && videoSrc && (
               <video
-                key={selectedDl.url}
-                src={selectedDl.url}
+                key={videoSrc}
+                src={videoSrc}
                 controls
                 autoPlay
                 playsInline
+                preload="auto"
                 className="w-full h-full"
                 crossOrigin="anonymous"
+                onLoadStart={() => {}}
               >
                 {enCaption && (
                   <track kind="subtitles" src={enCaption.url} srcLang="en" label="English" default />
@@ -228,184 +209,151 @@ export default function WatchModal({ item, onClose, initialSeason, initialEpisod
               </video>
             )}
           </>
-        ) : (
+        )}
+
+        {/* Embed player */}
+        {!useDirectPlayer && (
           <>
-            {phase === "loading" && !useFallback && (
+            {embedLoading && (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 z-10 pointer-events-none">
-                <div className="w-8 h-8 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
-                <p className="text-white/50 text-xs">
-                  {IFRAME_SOURCES[srcIdx]?.name} — switching in {countdown}s if no activity
-                </p>
+                <div className="w-10 h-10 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
+                <p className="text-white/50 text-sm">Starting player...</p>
               </div>
             )}
-            {phase === "switching" && (
-              <div className="absolute inset-0 flex items-center justify-center z-10 bg-black/70">
-                <p className="text-white/70 text-sm animate-pulse">Switching source…</p>
-              </div>
-            )}
-            {phase === "failed" && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 z-10">
-                <p className="text-5xl">😔</p>
-                <p className="text-white/70">All streams unavailable.</p>
-                <button
-                  onClick={() => { setSrcIdx(0); setPhase("loading"); }}
-                  className="mt-2 bg-red-600 hover:bg-red-700 text-white text-sm px-5 py-2 rounded-lg"
-                >
-                  Retry
-                </button>
-              </div>
-            )}
-            {embedId && phase !== "failed" && (
+            {embedId ? (
               <iframe
                 ref={iframeRef}
-                key={`${srcIdx}-${season}-${episode}`}
+                key={`${embedIdx}-${season}-${episode}`}
                 src={iframeUrl}
                 allowFullScreen
-                allow="autoplay; encrypted-media; fullscreen"
+                allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
                 className="w-full h-full border-0"
                 title={item.title}
+                onLoad={() => setEmbedLoading(false)}
               />
-            )}
-            {!embedId && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+            ) : (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 z-10">
                 <p className="text-5xl">🔒</p>
-                <p className="text-white/60 text-sm">No streaming source for this title.</p>
+                <p className="text-white/50 text-sm">No player available for this title.</p>
               </div>
             )}
           </>
         )}
       </div>
 
-      {/* Controls bar */}
-      <div className="flex-shrink-0 border-t border-white/10 bg-[#0a0a0a]">
-        <div className="px-4 py-2 flex items-center gap-2 overflow-x-auto border-b border-white/10" style={{ scrollbarWidth: "none" }}>
-          {useDirectPlayer && downloads.length > 0 && (
+      {/* Bottom bar */}
+      <div className="flex-shrink-0 bg-[#0d0d0d] border-t border-white/10">
+
+        {/* Controls row */}
+        <div className="px-4 py-2 flex items-center gap-3 min-h-[42px]">
+
+          {/* Direct stream controls */}
+          {useDirectPlayer && (
             <>
-              <span className="text-white/40 text-xs font-medium flex-shrink-0">Quality:</span>
-              {downloads.map(dl => (
-                <button
-                  key={dl.id}
-                  onClick={() => setSelectedDl(dl)}
-                  className={`flex-shrink-0 text-xs font-bold px-3 py-1 rounded transition-all ${
-                    selectedDl?.id === dl.id ? "bg-red-600 text-white" : "bg-white/10 text-white/60 hover:bg-white/20"
-                  }`}
-                >
-                  {resolutionLabel(dl.resolution)}
-                  {dl.size && <span className="ml-1 font-normal opacity-60">({fileSizeMB(dl.size)})</span>}
-                </button>
-              ))}
-              {captions.length > 0 && (
-                <>
-                  <div className="w-px h-4 bg-white/10 flex-shrink-0 mx-1" />
-                  <span className="text-white/40 text-xs flex-shrink-0">Subs:</span>
-                  {captions.slice(0, 6).map(c => (
-                    <a
-                      key={c.id}
-                      href={c.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-shrink-0 text-xs px-2 py-1 rounded bg-white/10 text-white/60 hover:bg-white/20 transition-all"
-                      title={c.lanName}
-                    >
-                      {c.lan.slice(0, 2).toUpperCase()}
-                    </a>
-                  ))}
-                </>
+              {downloads.length > 1 && (
+                <div className="relative">
+                  <button
+                    onClick={() => setShowQuality(p => !p)}
+                    className="flex items-center gap-1.5 text-xs text-white/60 hover:text-white transition-colors px-2 py-1 rounded bg-white/5 hover:bg-white/10"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    {selectedDl ? resolutionLabel(selectedDl.resolution) : "Quality"}
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                  {showQuality && (
+                    <div className="absolute bottom-full mb-1 left-0 bg-[#1a1a1a] border border-white/10 rounded-lg overflow-hidden shadow-xl min-w-[140px]">
+                      {downloads.map(dl => (
+                        <button
+                          key={dl.id}
+                          onClick={() => { setSelectedDl(dl); setShowQuality(false); }}
+                          className={`w-full text-left px-3 py-2 text-xs transition-colors flex items-center justify-between gap-3 ${
+                            selectedDl?.id === dl.id ? "bg-red-600/20 text-red-400" : "text-white/70 hover:bg-white/10"
+                          }`}
+                        >
+                          <span className="font-bold">{resolutionLabel(dl.resolution)}</span>
+                          {dl.size && <span className="opacity-50">{fileSizeMB(dl.size)}</span>}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
               {embedId && (
-                <>
-                  <div className="w-px h-4 bg-white/10 flex-shrink-0 mx-1" />
-                  <button
-                    onClick={() => setUseFallback(true)}
-                    className="flex-shrink-0 text-xs px-2 py-1 rounded bg-white/10 text-white/40 hover:bg-white/20 transition-all"
-                  >
-                    Use embeds
-                  </button>
-                </>
+                <button
+                  onClick={() => setUseFallback(true)}
+                  className="text-xs text-white/30 hover:text-white/60 transition-colors ml-auto"
+                >
+                  Try another player
+                </button>
               )}
             </>
           )}
 
+          {/* Embed player controls */}
           {!useDirectPlayer && (
             <>
-              <span className="text-white/40 text-xs font-medium flex-shrink-0">Source:</span>
-              {IFRAME_SOURCES.map((s, i) => (
-                <button
-                  key={s.name}
-                  onClick={() => { setSrcIdx(i); setPhase("loading"); setCountdown(AUTO_SWITCH_MS / 1000); }}
-                  className={`flex-shrink-0 text-xs font-bold px-3 py-1 rounded transition-all ${srcIdx === i ? "bg-red-600 text-white" : "bg-white/10 text-white/60 hover:bg-white/20"}`}
-                >
-                  {s.name}
-                </button>
-              ))}
-              {hasSubjectId && (
+              {embedId && (
                 <>
-                  <div className="w-px h-4 bg-white/10 flex-shrink-0 mx-1" />
+                  {embedLoading && (
+                    <span className="text-white/30 text-xs">Connecting to player...</span>
+                  )}
                   <button
-                    onClick={() => setUseFallback(false)}
-                    className="flex-shrink-0 text-xs px-2 py-1 rounded bg-green-600/20 text-green-400 border border-green-600/30 hover:bg-green-600/30 transition-all"
+                    onClick={tryNextEmbed}
+                    className="text-xs text-white/30 hover:text-white/70 transition-colors flex items-center gap-1"
+                    title="Switch to a different player"
                   >
-                    Direct Stream
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Not loading? Try another
                   </button>
+                  {hasSubjectId && (
+                    <button
+                      onClick={() => setUseFallback(false)}
+                      className="ml-auto text-xs text-green-400/70 hover:text-green-400 transition-colors"
+                    >
+                      ↑ Use direct stream
+                    </button>
+                  )}
                 </>
               )}
             </>
           )}
         </div>
 
+        {/* Episode/season navigation */}
         {isTV && (
-          <div className="px-4 py-2 flex items-center gap-4 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
-            {seasons.length > 0 && (
-              <>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <span className="text-white/50 text-xs font-medium">Season</span>
-                  <div className="flex gap-1">
-                    {seasons.map(s => (
-                      <button key={s.se} onClick={() => goEpisode(s.se, 1)}
-                        className={`w-7 h-7 rounded text-xs font-bold transition-all ${season === s.se ? "bg-red-600 text-white" : "bg-white/10 text-white/60 hover:bg-white/20"}`}
-                      >{s.se}</button>
-                    ))}
-                  </div>
-                </div>
-                <div className="w-px h-6 bg-white/10 flex-shrink-0" />
-              </>
-            )}
+          <div className="px-4 pb-2 flex items-center gap-3 overflow-x-auto border-t border-white/5 pt-2" style={{ scrollbarWidth: "none" }}>
 
-            {seasons.length === 0 && (
-              <>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <span className="text-white/50 text-xs font-medium">Season</span>
-                  <div className="flex gap-1">
-                    {Array.from({ length: 5 }, (_, i) => i + 1).map(s => (
-                      <button key={s} onClick={() => goEpisode(s, 1)}
-                        className={`w-7 h-7 rounded text-xs font-bold transition-all ${season === s ? "bg-red-600 text-white" : "bg-white/10 text-white/60 hover:bg-white/20"}`}
-                      >{s}</button>
-                    ))}
-                  </div>
-                </div>
-                <div className="w-px h-6 bg-white/10 flex-shrink-0" />
-              </>
-            )}
+            {(seasons.length > 0 ? seasons.map(s => s.se) : [1, 2, 3, 4, 5]).map(s => (
+              <button key={s} onClick={() => goEpisode(s, 1)}
+                className={`flex-shrink-0 text-xs font-semibold px-3 py-1.5 rounded transition-all ${season === s ? "bg-red-600 text-white" : "bg-white/10 text-white/50 hover:bg-white/20"}`}
+              >S{s}</button>
+            ))}
 
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <span className="text-white/50 text-xs font-medium">Ep</span>
-              <div className="flex gap-1">
-                {Array.from({ length: maxEpisodes }, (_, i) => i + 1).map(e => (
-                  <button key={e} onClick={() => goEpisode(season, e)}
-                    className={`w-7 h-7 rounded text-xs font-bold transition-all flex-shrink-0 ${episode === e ? "bg-red-600 text-white" : "bg-white/10 text-white/60 hover:bg-white/20"}`}
-                  >{e}</button>
-                ))}
-              </div>
+            <div className="w-px h-5 bg-white/10 flex-shrink-0" />
+
+            <div className="flex gap-1 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+              {Array.from({ length: maxEpisodes }, (_, i) => i + 1).map(e => (
+                <button key={e} onClick={() => goEpisode(season, e)}
+                  className={`flex-shrink-0 w-7 h-7 rounded text-xs font-semibold transition-all ${episode === e ? "bg-red-600 text-white" : "bg-white/10 text-white/50 hover:bg-white/20"}`}
+                >{e}</button>
+              ))}
             </div>
 
-            <div className="flex items-center gap-2 flex-shrink-0 ml-auto">
+            <div className="flex gap-2 ml-auto flex-shrink-0">
               <button
                 onClick={() => episode > 1 ? goEpisode(season, episode - 1) : season > 1 && goEpisode(season - 1, 1)}
-                className="flex items-center gap-1 bg-white/10 hover:bg-white/20 text-white text-xs px-3 py-1.5 rounded transition-colors"
+                className="bg-white/8 hover:bg-white/15 text-white/70 text-xs px-3 py-1.5 rounded transition-colors"
               >← Prev</button>
               <button
                 onClick={() => goEpisode(season, episode + 1)}
-                className="flex items-center gap-1 bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-1.5 rounded transition-colors"
+                className="bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-1.5 rounded transition-colors"
               >Next →</button>
             </div>
           </div>

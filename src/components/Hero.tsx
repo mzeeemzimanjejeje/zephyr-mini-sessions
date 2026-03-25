@@ -15,7 +15,6 @@ const Hero = memo(function Hero({ item }: Props) {
         <img
           src={item.image}
           alt={item.title}
-          fetchPriority="high"
           loading="eager"
           decoding="sync"
           className="absolute inset-0 w-full h-full object-cover object-top"

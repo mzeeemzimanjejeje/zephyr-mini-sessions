@@ -68,6 +68,20 @@ export interface CineverseSourcesData {
   captions: CineverseCaption[];
 }
 
+export interface CineverseHomeSection {
+  type: string;
+  position: number;
+  title: string;
+  subjects: CineverseItem[];
+  banner?: { items: Array<{ subjectId: string; subject: CineverseItem; image: { url: string } }> };
+}
+
+export interface CineverseHomeData {
+  bannerItems: Array<{ subjectId: string; subject: CineverseItem; image: { url: string } }>;
+  sections: CineverseHomeSection[];
+  platformList: Array<{ name: string; uploadBy: string }>;
+}
+
 async function apiFetch<T>(path: string): Promise<T> {
   const res = await fetch(`${BASE}/${path}`, { headers: HEADERS });
   if (!res.ok) throw new Error(`Cineverse API ${res.status}: ${path}`);
@@ -80,13 +94,22 @@ async function apiFetch<T>(path: string): Promise<T> {
 
 export async function searchCineverse(
   query: string,
-  type?: 1 | 2
-): Promise<CineverseItem[]> {
-  const qs = type ? `?type=${type}` : "";
-  const data = await apiFetch<{ items: CineverseItem[] }>(
-    `search/${encodeURIComponent(query)}${qs}`
-  );
-  return data.items ?? [];
+  type?: 1 | 2,
+  page?: number
+): Promise<{ items: CineverseItem[]; hasMore: boolean; nextPage: string }> {
+  const params = new URLSearchParams();
+  if (type) params.set("type", String(type));
+  if (page && page > 1) params.set("page", String(page));
+  const qs = params.toString() ? `?${params}` : "";
+  const data = await apiFetch<{
+    items: CineverseItem[];
+    pager: { hasMore: boolean; nextPage: string };
+  }>(`search/${encodeURIComponent(query)}${qs}`);
+  return {
+    items: data.items ?? [],
+    hasMore: data.pager?.hasMore ?? false,
+    nextPage: data.pager?.nextPage ?? "",
+  };
 }
 
 export async function fetchCineverseInfo(subjectId: string): Promise<CineverseInfoData> {
@@ -106,9 +129,42 @@ export async function fetchCineverseSources(
   return data;
 }
 
-export async function fetchCineverseTrending(): Promise<CineverseItem[]> {
-  const data = await apiFetch<{ subjectList: CineverseItem[] }>("trending");
+export async function fetchCineverseTrending(type?: 1 | 2): Promise<CineverseItem[]> {
+  const qs = type ? `?type=${type}` : "";
+  const data = await apiFetch<{ subjectList: CineverseItem[] }>(`trending${qs}`);
   return data.subjectList ?? [];
+}
+
+export async function fetchCineverseHomepage(): Promise<CineverseHomeData> {
+  const data = await apiFetch<{
+    operatingList: CineverseHomeSection[];
+    platformList: Array<{ name: string; uploadBy: string }>;
+  }>("homepage");
+
+  const operating = data.operatingList ?? [];
+
+  const bannerSection = operating.find((s) => s.type === "BANNER");
+  const bannerItems = bannerSection?.banner?.items?.filter(
+    (b) => b.subject && b.subject.hasResource && b.subject.subjectType !== 6
+  ) ?? [];
+
+  const sections = operating
+    .filter((s) => s.type === "SUBJECTS_MOVIE" && s.subjects?.length > 0)
+    .map((s) => ({
+      ...s,
+      subjects: s.subjects.filter((sub) => sub.subjectType !== 6 && sub.hasResource),
+    }))
+    .filter((s) => s.subjects.length > 0);
+
+  return {
+    bannerItems,
+    sections,
+    platformList: data.platformList ?? [],
+  };
+}
+
+export function streamProxyUrl(originalUrl: string): string {
+  return `${BASE}/stream?url=${encodeURIComponent(originalUrl)}`;
 }
 
 export function cineverseItemToContentItem(item: CineverseItem) {
@@ -118,7 +174,7 @@ export function cineverseItemToContentItem(item: CineverseItem) {
     subjectId: item.subjectId,
     title: item.title,
     type: (item.subjectType === 2 ? "Series" : "Movie") as "Movie" | "Series",
-    image: item.thumbnail || item.cover?.url || "",
+    image: item.cover?.url || item.thumbnail || "",
     rating: item.imdbRatingValue ? parseFloat(item.imdbRatingValue) || undefined : undefined,
     votes: item.imdbRatingCount ? formatVotes(item.imdbRatingCount) : undefined,
     year: item.releaseDate ? parseInt(item.releaseDate.split("-")[0]) : 0,
