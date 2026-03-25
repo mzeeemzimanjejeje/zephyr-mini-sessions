@@ -12,18 +12,18 @@ const MovieCard = memo(function MovieCard({ item }: Props) {
   const prefetchedRef = useRef(false);
   const navigate = useNavigate();
 
-  // Hover prefetch: when mouse enters the card, preload the detail page
-  // (same technique YouTube uses to preload video pages on thumbnail hover)
+  const href = item.subjectId ? `/title/${item.subjectId}` : `/title/${item.id}`;
+
   const handleMouseEnter = useCallback(() => {
     setHovered(true);
     if (!prefetchedRef.current) {
       prefetchedRef.current = true;
       const link = document.createElement("link");
       link.rel = "prefetch";
-      link.href = `/title/${item.id}`;
+      link.href = href;
       document.head.appendChild(link);
     }
-  }, [item.id]);
+  }, [href]);
 
   const handleWatch = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -38,10 +38,9 @@ const MovieCard = memo(function MovieCard({ item }: Props) {
         onMouseEnter={handleMouseEnter}
         onMouseLeave={() => setHovered(false)}
       >
-        <Link to={`/title/${item.id}`}>
+        <Link to={href}>
           <div className="relative overflow-hidden rounded-lg aspect-[2/3] bg-[#1a1a1a]">
 
-            {/* Skeleton shimmer — shows while image loads (Netflix/YouTube style) */}
             {!imgLoaded && (
               <div className="absolute inset-0 bg-[#1a1a1a] overflow-hidden">
                 <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/5 to-transparent" />
@@ -66,7 +65,7 @@ const MovieCard = memo(function MovieCard({ item }: Props) {
                 Watch
               </button>
               <button
-                onClick={e => { e.preventDefault(); navigate(`/title/${item.id}`); }}
+                onClick={e => { e.preventDefault(); navigate(href); }}
                 className="w-full bg-white/20 hover:bg-white/30 text-white text-xs font-semibold py-1.5 rounded flex items-center justify-center gap-1 transition-colors"
               >
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">

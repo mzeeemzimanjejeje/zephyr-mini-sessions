@@ -1,15 +1,14 @@
 # StreamFlixx
 
-A modern Netflix-style video streaming platform built with React and TypeScript.
+A modern Netflix-style video streaming platform built with React and TypeScript, enhanced with live data from the Cineverse/MovieBox API.
 
 ## Tech Stack
 
 - **Frontend:** React 18 + TypeScript
-- **Build Tool:** Vite
+- **Build Tool:** Vite (requires `PORT` and `BASE_PATH` env vars)
 - **Styling:** Tailwind CSS + shadcn/ui (Radix UI primitives)
 - **Routing:** React Router DOM v6
-- **Data Fetching:** TanStack React Query
-- **Video Playback:** video.js + hls.js + react-hls-player (HLS streaming)
+- **Data Fetching:** TanStack React Query v5
 - **Package Manager:** pnpm (with workspace catalog)
 
 ## Project Structure
@@ -17,39 +16,62 @@ A modern Netflix-style video streaming platform built with React and TypeScript.
 ```
 /
 ├── src/
-│   ├── components/     # Reusable UI components (Navbar, Hero, MovieCard, etc.)
-│   ├── pages/          # Route-level pages (Home, Genres, Search, DetailPage)
-│   ├── data/           # Mock data and content definitions
-│   ├── hooks/          # Custom React hooks (useWatchHistory, useRecommendations)
-│   ├── App.tsx         # Root component with routing
-│   └── main.tsx        # Application entry point
-├── public/             # Static assets + service worker
-├── artifacts/          # Reference implementations (api-server, streamflixx)
-├── pnpm-workspace.yaml # pnpm workspace with catalog dependency versions
-├── vite.config.ts      # Vite configuration (requires PORT and BASE_PATH env vars)
-├── tsconfig.json       # TypeScript configuration
-└── tailwind.config.ts  # Tailwind CSS configuration
+│   ├── components/     # Reusable UI (Navbar, Hero, MovieCard, WatchModal, etc.)
+│   ├── pages/          # Route pages (Home, Genres, Search, DetailPage)
+│   ├── data/           # Static mock content + cast/genre metadata
+│   ├── hooks/          # useWatchHistory, useRecommendations
+│   ├── lib/
+│   │   └── cineverse.ts   # Cineverse/MovieBox API client
+│   ├── App.tsx
+│   └── main.tsx        # Entry point + QueryClientProvider
+├── public/
+├── pnpm-workspace.yaml
+├── vite.config.ts
+├── tsconfig.json
+└── tailwind.config.ts
 ```
 
 ## Development
 
-The app requires `PORT` and `BASE_PATH` environment variables for Vite. The workflow runs:
 ```
 PORT=5000 BASE_PATH=/ pnpm run dev
 ```
 
+## Cineverse API Integration
+
+Base URL: `https://moviebox.davidcyril.name.ng/api`
+Required headers: `User-Agent` (Android Chrome), `Referer` and `Origin` set to `https://cineverse.name.ng/`
+
+Key endpoints:
+- `/api/search/{query}?type=1|2` — live search (type 1=Movie, 2=Series, 6=Music filtered out)
+- `/api/info/{subjectId}` — metadata, seasons, trailer
+- `/api/sources/{subjectId}?season=X&episode=Y` — direct MP4 downloads + SRT captions
+- `/api/trending` — 18 trending titles in `subjectList`
+
+## Video Player Strategy
+
+**API items** (`item.subjectId` present): Native HTML5 `<video>` with quality selector (360p–1080p), subtitle tracks (SRT), "Use embeds" fallback toggle.
+
+**Static-only items** (IMDB ID only): Rotating iframe embeds (vidsrc.xyz → moviesapi.club → vidsrc.to → vidsrc.mov) with 8s auto-switch and source picker.
+
+## Routing
+
+- Static content: routes by numeric `id` (1–330), e.g. `/title/1`
+- API content: routes by `subjectId` (18-digit string), e.g. `/title/112345678901234567`
+- DetailPage detects which mode by checking if a static item exists for the numeric ID
+
 ## Key Features
 
-- Hero banner with featured content
-- Genre-based browsing
-- Trending/Popular carousels
-- Search functionality
-- Content detail pages with video player modal
-- Watch history tracking
-- Service worker for offline caching (production only)
+- Live trending row fetched from Cineverse API
+- Live search with debounce against Cineverse API
+- Direct MP4 streaming with quality and subtitle selection
+- Watch history with progress tracking (localStorage)
+- Personalised recommendations from watch history
+- Hero banner, genre browsing, content carousels
+- Detail pages with cast, genres, seasons info
 
 ## Deployment
 
-Configured as a static site deployment:
+Static site:
 - Build: `PORT=5000 BASE_PATH=/ pnpm run build`
 - Output: `dist/public`

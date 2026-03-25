@@ -1,5 +1,6 @@
 export interface ContentItem {
   id: number;
+  subjectId?: string;
   title: string;
   type: 'Movie' | 'Series';
   image: string;

@@ -1,7 +1,12 @@
 import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { allContent } from "../data/content";
+import { useQuery } from "@tanstack/react-query";
+import { allContent, ContentItem } from "../data/content";
 import { titleDetails, genreInfo } from "../data/cast";
+import {
+  fetchCineverseInfo,
+  cineverseItemToContentItem,
+} from "../lib/cineverse";
 import WatchModal from "../components/WatchModal";
 import MovieCard from "../components/MovieCard";
 import { useWatchHistory } from "../hooks/useWatchHistory";
@@ -12,12 +17,43 @@ export default function DetailPage() {
   const navigate = useNavigate();
   const [showModal, setShowModal] = useState(false);
   const [activeActor, setActiveActor] = useState<string | null>(null);
-  const { history, getProgress } = useWatchHistory();
+  const { history } = useWatchHistory();
 
-  const item = allContent.find(c => c.id === Number(id));
+  const numericId = Number(id);
+  const isNumericId = !isNaN(numericId) && numericId > 0;
+  const staticItem = isNumericId ? allContent.find(c => c.id === numericId) : null;
+
+  const isApiId = !isNumericId || !staticItem;
+  const subjectId = isApiId ? id! : (staticItem?.subjectId ?? null);
+
+  const { data: apiInfo, isLoading: apiLoading } = useQuery({
+    queryKey: ["cineverseInfo", subjectId],
+    queryFn: () => fetchCineverseInfo(subjectId!),
+    enabled: Boolean(subjectId),
+    staleTime: 1000 * 60 * 10,
+  });
+
+  const apiSubject = apiInfo?.subject;
+  const apiResource = apiInfo?.resource;
+
+  const item: ContentItem | null = staticItem ?? (
+    apiSubject
+      ? { ...cineverseItemToContentItem(apiSubject), id: numericId || 0, subjectId: subjectId! }
+      : null
+  );
+
   const recommendations = useRecommendations(history, item?.id);
 
   useEffect(() => { window.scrollTo(0, 0); setShowModal(false); }, [id]);
+
+  if (apiLoading) {
+    return (
+      <div className="min-h-screen bg-[#141414] flex flex-col items-center justify-center gap-4 pt-16">
+        <div className="w-10 h-10 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
+        <p className="text-white/50 text-sm">Loading title info...</p>
+      </div>
+    );
+  }
 
   if (!item) {
     return (
@@ -29,15 +65,13 @@ export default function DetailPage() {
     );
   }
 
-  const detail = titleDetails[item.id];
+  const detail = staticItem ? titleDetails[staticItem.id] : null;
   const cast = detail?.cast ?? [];
   const isTV = item.type === "Series";
 
-  // Find last watched episode for this item
   const lastWatch = history.find(e => e.id === item.id);
   const progress = lastWatch ? lastWatch.progress : 0;
 
-  // Related by genre
   const related = allContent
     .filter(c => c.id !== item.id && c.genres.some(g => item.genres.includes(g)))
     .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))
@@ -53,9 +87,14 @@ export default function DetailPage() {
       )
     : [];
 
+  const plot = detail?.plot ?? apiSubject?.description ?? "";
+  const durationMin = apiSubject?.duration ? Math.round(apiSubject.duration / 60) : null;
+  const trailerUrl = apiSubject?.trailer?.videoAddress?.url ?? null;
+  const seasons = apiResource?.seasons ?? [];
+  const canWatch = Boolean(item.subjectId || item.imdbId);
+
   return (
     <div className="min-h-screen bg-[#141414]">
-      {/* Hero */}
       <div className="relative w-full h-[60vh] min-h-[400px] overflow-hidden">
         <img src={item.image} alt={item.title} className="absolute inset-0 w-full h-full object-cover object-top" loading="eager" />
         <div className="absolute inset-0 bg-gradient-to-r from-black/95 via-black/60 to-transparent" />
@@ -82,6 +121,17 @@ export default function DetailPage() {
                 <span className="text-yellow-400 font-bold text-sm">⭐ {item.rating}</span>
               </>
             )}
+            {durationMin && (
+              <>
+                <span className="text-white/40">•</span>
+                <span className="text-white/60 text-sm">{durationMin} min</span>
+              </>
+            )}
+            {item.subjectId && (
+              <span className="text-xs bg-green-600/20 text-green-400 border border-green-600/30 px-2 py-0.5 rounded font-medium">
+                Direct Stream
+              </span>
+            )}
           </div>
 
           <h1 className="text-3xl md:text-5xl font-bold text-white mb-2 leading-tight">{item.title}</h1>
@@ -89,7 +139,13 @@ export default function DetailPage() {
             <p className="text-white/50 text-sm mb-3">by <span className="text-white/80">{detail.director}</span></p>
           )}
 
-          {/* Watch progress bar */}
+          {seasons.length > 0 && (
+            <p className="text-white/50 text-sm mb-3">
+              {seasons.length} season{seasons.length !== 1 ? "s" : ""} ·{" "}
+              {seasons.reduce((sum, s) => sum + s.maxEp, 0)} episodes
+            </p>
+          )}
+
           {progress > 0 && (
             <div className="mb-3 max-w-xs">
               <div className="flex justify-between text-xs text-white/50 mb-1">
@@ -102,8 +158,8 @@ export default function DetailPage() {
             </div>
           )}
 
-          <div className="flex gap-3 mt-4">
-            {item.imdbId ? (
+          <div className="flex gap-3 mt-4 flex-wrap">
+            {canWatch ? (
               <>
                 <button
                   onClick={() => setShowModal(true)}
@@ -112,13 +168,15 @@ export default function DetailPage() {
                   <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
                   {progress > 0 ? "Continue" : "Watch Now"}
                 </button>
-                {progress > 0 && (
-                  <button
-                    onClick={() => setShowModal(true)}
+                {trailerUrl && (
+                  <a
+                    href={trailerUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white font-semibold px-5 py-3 rounded-lg transition-colors text-sm"
                   >
-                    Start Over
-                  </button>
+                    ▶ Trailer
+                  </a>
                 )}
               </>
             ) : (
@@ -130,15 +188,21 @@ export default function DetailPage() {
 
       <div className="px-6 md:px-16 pb-16 -mt-2">
 
-        {/* Overview */}
-        {detail?.plot && (
+        {plot && (
           <section className="mb-8 max-w-3xl">
             <h2 className="text-white font-bold text-lg mb-2">Overview</h2>
-            <p className="text-white/70 leading-relaxed">{detail.plot}</p>
+            <p className="text-white/70 leading-relaxed">{plot}</p>
           </section>
         )}
 
-        {/* Genre classification */}
+        {apiSubject?.subtitles && (
+          <section className="mb-6 max-w-3xl">
+            <p className="text-white/40 text-xs">
+              Subtitles: <span className="text-white/60">{apiSubject.subtitles}</span>
+            </p>
+          </section>
+        )}
+
         <section className="mb-8">
           <h2 className="text-white font-bold text-lg mb-3">Genres & Classification</h2>
           {detail?.classification && (
@@ -160,24 +224,8 @@ export default function DetailPage() {
               );
             })}
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-2xl">
-            {item.genres.map(genre => {
-              const info = genreInfo[genre];
-              if (!info) return null;
-              return (
-                <div key={genre} className="flex items-start gap-3 bg-white/5 rounded-lg p-3">
-                  <span className="text-2xl">{info.icon}</span>
-                  <div>
-                    <p className="text-white font-semibold text-sm">{genre}</p>
-                    <p className="text-white/50 text-xs mt-0.5">{info.description}</p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
         </section>
 
-        {/* Cast */}
         {cast.length > 0 && (
           <section className="mb-10">
             <h2 className="text-white font-bold text-lg mb-1">Cast & Characters</h2>
@@ -219,7 +267,6 @@ export default function DetailPage() {
           </section>
         )}
 
-        {/* Recommendations */}
         {recommendations.length > 0 && (
           <section className="mb-8">
             <h2 className="text-white font-bold text-lg mb-1">Recommended For You</h2>
@@ -230,7 +277,6 @@ export default function DetailPage() {
           </section>
         )}
 
-        {/* More like this */}
         {related.length > 0 && (
           <section>
             <h2 className="text-white font-bold text-lg mb-1">More Like This</h2>
@@ -242,7 +288,7 @@ export default function DetailPage() {
         )}
       </div>
 
-      {showModal && (
+      {showModal && item && (
         <WatchModal
           item={item}
           initialSeason={lastWatch?.season}
