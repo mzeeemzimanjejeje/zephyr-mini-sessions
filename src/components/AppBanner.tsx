@@ -1,14 +1,20 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 
-const APP_URL =
-  (import.meta.env.VITE_MOBILE_APP_URL as string) ||
-  "https://movie-site.courtneytech.xyz";
+const APK_URL =
+  "https://github.com/mzeeemzimanjejeje/zephyr-mini-sessions/releases/latest/download/courtney-ent.apk";
+
+const isIOS =
+  typeof navigator !== "undefined" &&
+  /iphone|ipad|ipod/i.test(navigator.userAgent);
+
+const isAndroid =
+  typeof navigator !== "undefined" &&
+  /android/i.test(navigator.userAgent);
 
 export default function AppBanner() {
   const [visible, setVisible] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [showGuide, setShowGuide] = useState(false);
-  const guideRef = useRef<HTMLDivElement>(null);
+  const [iosHint, setIosHint] = useState(false);
 
   useEffect(() => {
     if (localStorage.getItem("ce_banner_dismissed") === "1") return;
@@ -22,17 +28,8 @@ export default function AppBanner() {
     return () => window.removeEventListener("beforeinstallprompt", handler);
   }, []);
 
-  useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      if (guideRef.current && !guideRef.current.contains(e.target as Node)) {
-        setShowGuide(false);
-      }
-    };
-    if (showGuide) document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [showGuide]);
-
   const handleInstall = async () => {
+    // Chrome Android — native PWA install prompt available
     if (deferredPrompt) {
       deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
@@ -41,9 +38,23 @@ export default function AppBanner() {
         localStorage.setItem("ce_banner_dismissed", "1");
       }
       setDeferredPrompt(null);
-    } else {
-      setShowGuide((v) => !v);
+      return;
     }
+
+    // iOS — can't install APKs; show one quick hint
+    if (isIOS) {
+      setIosHint(true);
+      setTimeout(() => setIosHint(false), 4000);
+      return;
+    }
+
+    // Android (no PWA prompt yet) — direct APK download
+    const a = document.createElement("a");
+    a.href = APK_URL;
+    a.download = "courtney-ent.apk";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   };
 
   const handleDismiss = () => {
@@ -65,18 +76,38 @@ export default function AppBanner() {
               Courtney ENT
             </p>
             <p className="text-gray-400 text-xs leading-none truncate">
-              Stream movies &amp; series on your phone — free
+              {isIOS
+                ? "Tap Share → Add to Home Screen"
+                : "Free • Stream movies & series"}
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          <button
-            onClick={handleInstall}
-            className="bg-red-600 hover:bg-red-500 active:bg-red-700 text-white text-xs font-bold px-4 py-1.5 rounded-full transition-colors whitespace-nowrap"
-          >
-            {deferredPrompt ? "Install App" : "Get App"}
-          </button>
+          {/* On iOS: link to site (best we can do — native install is via Safari Share) */}
+          {isIOS ? (
+            <button
+              onClick={handleInstall}
+              className="bg-red-600 hover:bg-red-500 text-white text-xs font-bold px-4 py-1.5 rounded-full transition-colors whitespace-nowrap"
+            >
+              How to Install
+            </button>
+          ) : (
+            /* Android / Desktop: direct APK download or PWA install */
+            <a
+              href={APK_URL}
+              download="courtney-ent.apk"
+              onClick={(e) => {
+                if (deferredPrompt) {
+                  e.preventDefault();
+                  handleInstall();
+                }
+              }}
+              className="bg-red-600 hover:bg-red-500 text-white text-xs font-bold px-4 py-1.5 rounded-full transition-colors whitespace-nowrap"
+            >
+              {deferredPrompt ? "Install App" : "Download APK"}
+            </a>
+          )}
           <button
             onClick={handleDismiss}
             className="text-gray-500 hover:text-gray-300 transition-colors p-1"
@@ -89,41 +120,12 @@ export default function AppBanner() {
         </div>
       </div>
 
-      {showGuide && (
-        <div
-          ref={guideRef}
-          className="absolute right-4 top-full mt-2 w-72 bg-[#1f1f1f] border border-[#333] rounded-xl shadow-2xl p-4 z-[10000]"
-        >
-          <p className="text-white text-sm font-semibold mb-3">Install the app</p>
-
-          <div className="mb-4">
-            <p className="text-red-400 text-xs font-bold uppercase tracking-wide mb-1.5">Android</p>
-            <ol className="text-gray-300 text-xs space-y-1.5 list-none">
-              <li className="flex gap-2"><span className="text-red-500 font-bold">1.</span>Open this site in <strong>Chrome</strong></li>
-              <li className="flex gap-2"><span className="text-red-500 font-bold">2.</span>Tap the <strong>⋮ menu</strong> (top right)</li>
-              <li className="flex gap-2"><span className="text-red-500 font-bold">3.</span>Tap <strong>"Add to Home screen"</strong></li>
-              <li className="flex gap-2"><span className="text-red-500 font-bold">4.</span>Tap <strong>Install</strong></li>
-            </ol>
-          </div>
-
-          <div className="mb-4">
-            <p className="text-gray-400 text-xs font-bold uppercase tracking-wide mb-1.5">iPhone / iPad</p>
-            <ol className="text-gray-300 text-xs space-y-1.5 list-none">
-              <li className="flex gap-2"><span className="text-gray-500 font-bold">1.</span>Open this site in <strong>Safari</strong></li>
-              <li className="flex gap-2"><span className="text-gray-500 font-bold">2.</span>Tap the <strong>Share button</strong> <span className="text-gray-400">(box with arrow)</span></li>
-              <li className="flex gap-2"><span className="text-gray-500 font-bold">3.</span>Tap <strong>"Add to Home Screen"</strong></li>
-            </ol>
-          </div>
-
-          <a
-            href={APP_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block w-full text-center bg-red-600 hover:bg-red-500 text-white text-xs font-bold py-2 rounded-lg transition-colors"
-            onClick={() => setShowGuide(false)}
-          >
-            Open App →
-          </a>
+      {/* iOS hint tooltip */}
+      {iosHint && (
+        <div className="absolute right-4 top-full mt-2 bg-[#1f1f1f] border border-[#333] rounded-xl shadow-2xl px-4 py-3 z-[10000] text-xs text-gray-300 max-w-[220px]">
+          In <strong className="text-white">Safari</strong>, tap the{" "}
+          <strong className="text-white">Share</strong> button then{" "}
+          <strong className="text-white">"Add to Home Screen"</strong>
         </div>
       )}
     </div>
