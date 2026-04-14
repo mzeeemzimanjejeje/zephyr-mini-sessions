@@ -1,4 +1,4 @@
-# Courtney ENT
+# Courtney Movies
 
 A modern Netflix-style video streaming and download platform built with React and TypeScript, powered by live data from the Cineverse/MovieBox API and the FZMovies download API.
 

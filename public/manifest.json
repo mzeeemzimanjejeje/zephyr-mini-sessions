@@ -1,6 +1,6 @@
 {
-  "name": "Courtney ENT",
-  "short_name": "CE",
+  "name": "Courtney Movies",
+  "short_name": "Courtney Movies",
   "description": "Stream movies and series — free, no ads",
   "start_url": "/",
   "display": "standalone",

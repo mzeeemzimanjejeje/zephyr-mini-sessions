@@ -57,7 +57,7 @@ export default function AppBanner() {
           </div>
           <div className="min-w-0">
             <p className="text-white text-sm font-semibold leading-none mb-0.5 truncate">
-              Courtney ENT
+              Courtney Movies
             </p>
             <p className="text-gray-400 text-xs leading-none truncate">
               Free · Stream movies &amp; series

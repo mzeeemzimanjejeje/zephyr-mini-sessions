@@ -42,7 +42,7 @@ export default function TabsLayout() {
         options={{
           title: "Home",
           tabBarIcon: ({ color, size }) => <Ionicons name="home" size={size} color={color} />,
-          headerTitle: "Courtney ENT",
+          headerTitle: "Courtney Movies",
         }}
       />
       <Tabs.Screen

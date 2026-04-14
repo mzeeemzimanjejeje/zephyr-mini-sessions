@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Courtney ENT",
+    "name": "Courtney Movies",
     "slug": "courtney-ent",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -26,8 +26,8 @@
     "web": {
       "favicon": "./assets/icon.png",
       "bundler": "metro",
-      "name": "Courtney ENT",
-      "shortName": "CE",
+      "name": "Courtney Movies",
+      "shortName": "Courtney Movies",
       "description": "Stream movies and series — free, no ads",
       "backgroundColor": "#0a0a0a",
       "themeColor": "#e50914",
