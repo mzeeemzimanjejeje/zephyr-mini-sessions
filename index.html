@@ -6,18 +6,28 @@
     <title>Courtney Movies</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 
+    <!-- API servers: open connections before JS even executes -->
+    <link rel="preconnect" href="https://moviebox.davidcyril.name.ng" crossorigin />
+    <link rel="dns-prefetch" href="https://moviebox.davidcyril.name.ng" />
+    <link rel="preconnect" href="https://apis.davidcyril.name.ng" crossorigin />
+    <link rel="dns-prefetch" href="https://apis.davidcyril.name.ng" />
+
     <!-- Image CDN: preconnect so every card image loads instantly -->
     <link rel="preconnect" href="https://pbcdnw.aoneroom.com" crossorigin />
     <link rel="dns-prefetch" href="https://pbcdnw.aoneroom.com" />
     <link rel="preconnect" href="https://images.metahub.space" crossorigin />
     <link rel="dns-prefetch" href="https://images.metahub.space" />
+    <link rel="dns-prefetch" href="https://fzmovies.ng" />
+    <link rel="dns-prefetch" href="https://www.fzmovies.ng" />
 
-    <!-- Video sources: pre-dial all 3 servers so Play has zero startup delay -->
-    <link rel="preconnect" href="https://vidsrc.xyz" crossorigin />
+    <!-- Video sources: pre-dial all servers so Play has zero startup delay -->
     <link rel="dns-prefetch" href="https://vidsrc.xyz" />
-    <link rel="preconnect" href="https://vidsrc.to" crossorigin />
     <link rel="dns-prefetch" href="https://vidsrc.to" />
+    <link rel="dns-prefetch" href="https://vidsrc.me" />
+    <link rel="dns-prefetch" href="https://vidsrc.su" />
     <link rel="dns-prefetch" href="https://vidsrc.mov" />
+    <link rel="dns-prefetch" href="https://vidlink.pro" />
+    <link rel="dns-prefetch" href="https://www.omdbapi.com" />
 
     <!-- Preload the hero image (above the fold — highest priority) -->
     <link

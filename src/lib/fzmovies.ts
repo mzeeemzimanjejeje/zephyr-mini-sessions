@@ -29,12 +29,18 @@ export interface FZDownloadResult {
   error?: string;
 }
 
+const _inflight = new Map<string, Promise<unknown>>();
+
 async function apiFetch<T>(path: string): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    signal: AbortSignal.timeout(10000),
-  });
-  if (!res.ok) throw new Error(`FZMovies API ${res.status}: ${path}`);
-  return res.json() as Promise<T>;
+  if (_inflight.has(path)) return _inflight.get(path) as Promise<T>;
+  const p = fetch(`${BASE}${path}`, { signal: AbortSignal.timeout(10000) })
+    .then(async (res) => {
+      if (!res.ok) throw new Error(`FZMovies API ${res.status}: ${path}`);
+      return res.json() as T;
+    })
+    .finally(() => _inflight.delete(path));
+  _inflight.set(path, p);
+  return p;
 }
 
 export async function fetchFZLatest(page?: number): Promise<{ results: FZMovie[]; count: number }> {

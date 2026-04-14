@@ -82,14 +82,23 @@ export interface CineverseHomeData {
   platformList: Array<{ name: string; uploadBy: string }>;
 }
 
+const _inflight = new Map<string, Promise<unknown>>();
+
 async function apiFetch<T>(path: string): Promise<T> {
-  const res = await fetch(`${BASE}/${path}`, { headers: HEADERS });
-  if (!res.ok) throw new Error(`Cineverse API ${res.status}: ${path}`);
-  const json = await res.json();
-  if (json.data?.code && json.data?.reason) {
-    throw new Error(`API error: ${json.data.message}`);
-  }
-  return json.data as T;
+  const key = path;
+  if (_inflight.has(key)) return _inflight.get(key) as Promise<T>;
+  const p = fetch(`${BASE}/${path}`, { headers: HEADERS })
+    .then(async (res) => {
+      if (!res.ok) throw new Error(`Cineverse API ${res.status}: ${path}`);
+      const json = await res.json();
+      if (json.data?.code && json.data?.reason) {
+        throw new Error(`API error: ${json.data.message}`);
+      }
+      return json.data as T;
+    })
+    .finally(() => _inflight.delete(key));
+  _inflight.set(key, p);
+  return p;
 }
 
 export async function searchCineverse(
