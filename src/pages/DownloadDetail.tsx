@@ -1,7 +1,7 @@
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { fetchFZInfo, fetchFZDownload, formatFZDate, extractGenres } from "../lib/fzmovies";
+import { fetchFZInfo, fetchFZDownload, formatFZDate, extractGenres, decodeHtml, FZDownloadResult } from "../lib/fzmovies";
 
 function Skeleton() {
   return (
@@ -25,10 +25,49 @@ function Skeleton() {
   );
 }
 
+interface DownloadLinkRowProps {
+  label: string;
+  url: string;
+  icon?: "download" | "external";
+  quality?: string;
+}
+
+function DownloadLinkRow({ label, url, icon = "download", quality }: DownloadLinkRowProps) {
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex items-center justify-between w-full bg-[#111] hover:bg-red-600/10 border border-white/5 hover:border-red-600/30 rounded-xl px-4 py-3 transition-all group"
+    >
+      <div className="flex items-center gap-3">
+        <div className="w-8 h-8 bg-red-600/10 rounded-lg flex items-center justify-center shrink-0">
+          {icon === "download" ? (
+            <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+          ) : (
+            <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+          )}
+        </div>
+        <div>
+          <p className="text-white text-sm font-medium group-hover:text-red-400 transition-colors">{label}</p>
+          {quality && <p className="text-white/30 text-xs">{quality}</p>}
+        </div>
+      </div>
+      <svg className="w-4 h-4 text-white/20 group-hover:text-red-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+      </svg>
+    </a>
+  );
+}
+
 export default function DownloadDetail() {
   const { slug } = useParams<{ slug: string }>();
   const [fetchingLinks, setFetchingLinks] = useState(false);
-  const [downloadLinks, setDownloadLinks] = useState<{ label: string; url: string }[] | null>(null);
+  const [downloadResult, setDownloadResult] = useState<FZDownloadResult | null>(null);
   const [linkError, setLinkError] = useState<string | null>(null);
 
   const { data: movie, isLoading, error } = useQuery({
@@ -42,15 +81,13 @@ export default function DownloadDetail() {
     if (!movie?.download_links?.[0]) return;
     setFetchingLinks(true);
     setLinkError(null);
-    setDownloadLinks(null);
+    setDownloadResult(null);
     try {
       const result = await fetchFZDownload(movie.download_links[0]);
-      if (result.success && result.links && result.links.length > 0) {
-        setDownloadLinks(result.links);
-      } else if (result.error) {
-        setLinkError(result.error);
+      if (result.success) {
+        setDownloadResult(result);
       } else {
-        setLinkError("No download links found. Try again later.");
+        setLinkError(result.error ?? "No download links found. Try again later.");
       }
     } catch {
       setLinkError("Failed to fetch download links.");
@@ -73,6 +110,7 @@ export default function DownloadDetail() {
   const year = movie.title.match(/\((\d{4})\)/)?.[1] ?? "";
   const cleanTitle = movie.title.replace(/\s*\(\d{4}\)\s*(Movie|Series|Season \d+)?/i, "").trim();
   const genres = extractGenres(movie.categories);
+  const description = decodeHtml(movie.description || "");
 
   return (
     <div className="min-h-screen bg-[#141414] pt-20 px-4 pb-20">
@@ -94,7 +132,9 @@ export default function DownloadDetail() {
                 <img
                   src={movie.poster}
                   alt={cleanTitle}
+                  referrerPolicy="no-referrer"
                   className="w-full sm:w-44 h-64 sm:h-60 object-cover rounded-xl shrink-0 bg-[#111]"
+                  onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
                 />
               ) : (
                 <div className="w-full sm:w-44 h-64 sm:h-60 bg-[#111] rounded-xl flex items-center justify-center shrink-0">
@@ -114,21 +154,19 @@ export default function DownloadDetail() {
                     </span>
                   )}
                   {genres.map(g => (
-                    <span key={g} className="text-xs text-white/50 bg-white/5 px-2.5 py-1 rounded-full">
+                    <span key={g} className="text-xs text-white/50 bg-white/5 px-2.5 py-1 rounded-full capitalize">
                       {g}
                     </span>
                   ))}
                 </div>
 
-                <p className="text-white/60 text-sm leading-relaxed mb-4">
-                  {movie.description || "No description available."}
-                </p>
+                {description && (
+                  <p className="text-white/60 text-sm leading-relaxed mb-4">{description}</p>
+                )}
 
-                <p className="text-white/25 text-xs mb-5">
-                  Added {formatFZDate(movie.date)}
-                </p>
+                <p className="text-white/25 text-xs mb-5">Added {formatFZDate(movie.date)}</p>
 
-                {!downloadLinks && (
+                {!downloadResult && (
                   <button
                     onClick={handleGetLinks}
                     disabled={fetchingLinks || !movie.download_links?.length}
@@ -168,54 +206,44 @@ export default function DownloadDetail() {
             </div>
           )}
 
-          {downloadLinks && downloadLinks.length > 0 && (
+          {downloadResult?.success && (
             <div className="px-6 pb-8">
               <div className="border-t border-white/5 pt-6">
-                <h2 className="text-white font-semibold text-base mb-4 flex items-center gap-2">
+                <h2 className="text-white font-semibold text-base mb-1 flex items-center gap-2">
                   <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                   </svg>
                   Download Links
                 </h2>
+                {downloadResult.filename && (
+                  <p className="text-white/30 text-xs mb-4">
+                    File: <span className="text-white/50">{downloadResult.filename}</span>
+                  </p>
+                )}
                 <div className="space-y-2">
-                  {downloadLinks.map((link, i) => (
-                    <a
-                      key={i}
-                      href={link.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center justify-between w-full bg-[#111] hover:bg-red-600/10 border border-white/5 hover:border-red-600/30 rounded-xl px-4 py-3 transition-all group"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-red-600/10 rounded-lg flex items-center justify-center shrink-0">
-                          <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                          </svg>
-                        </div>
-                        <div>
-                          <p className="text-white text-sm font-medium group-hover:text-red-400 transition-colors">
-                            {link.label || `Download ${i + 1}`}
-                          </p>
-                          {link.quality && (
-                            <p className="text-white/30 text-xs">{link.quality}</p>
-                          )}
-                          {link.size && (
-                            <p className="text-white/30 text-xs">{link.size}</p>
-                          )}
-                        </div>
-                      </div>
-                      <svg className="w-4 h-4 text-white/20 group-hover:text-red-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                      </svg>
-                    </a>
-                  ))}
+                  {downloadResult.download_url && (
+                    <DownloadLinkRow
+                      label="Direct Download"
+                      url={downloadResult.download_url}
+                      icon="download"
+                      quality="Direct link · fastest"
+                    />
+                  )}
+                  {downloadResult.meetdownload_url && (
+                    <DownloadLinkRow
+                      label="Mirror Download"
+                      url={downloadResult.meetdownload_url}
+                      icon="external"
+                      quality="Via MeetDownload"
+                    />
+                  )}
                 </div>
               </div>
             </div>
           )}
         </div>
 
-        {movie.download_links && movie.download_links.length > 0 && (
+        {movie.url && (
           <div className="mt-4 px-2">
             <p className="text-white/20 text-xs">
               Source:{" "}

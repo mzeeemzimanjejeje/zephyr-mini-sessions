@@ -36,6 +36,7 @@ export default function WatchModal({ item, onClose, initialSeason, initialEpisod
   const [useFallback, setUseFallback] = useState(false);
   const [showQuality, setShowQuality] = useState(false);
   const [resolvedImdbId, setResolvedImdbId] = useState<string | null>(null);
+  const [imdbLookupDone, setImdbLookupDone] = useState(false);
 
   const [embedIdx, setEmbedIdx] = useState(0);
   const [embedLoading, setEmbedLoading] = useState(true);
@@ -89,8 +90,19 @@ export default function WatchModal({ item, onClose, initialSeason, initialEpisod
 
   // Auto-lookup IMDB ID for Cineverse items that don't have one
   useEffect(() => {
-    if (item.imdbId) { setResolvedImdbId(item.imdbId); return; }
-    fetchImdbId(item.title, item.year).then(id => { if (id) setResolvedImdbId(id); });
+    setImdbLookupDone(false);
+    setResolvedImdbId(null);
+    if (item.imdbId) {
+      setResolvedImdbId(item.imdbId);
+      setImdbLookupDone(true);
+      return;
+    }
+    fetchImdbId(item.title, item.year).then(id => {
+      setResolvedImdbId(id);
+      setImdbLookupDone(true);
+    }).catch(() => {
+      setImdbLookupDone(true);
+    });
   }, [item.imdbId, item.title, item.year]);
 
   useEffect(() => {
@@ -207,27 +219,37 @@ export default function WatchModal({ item, onClose, initialSeason, initialEpisod
         {/* Embed player */}
         {!useDirectPlayer && (
           <>
-            {/* Show spinner while waiting for IMDB ID or iframe load */}
-            {(embedLoading || !embedId) && (
+            {/* Spinner while looking up IMDB ID or loading iframe */}
+            {(!imdbLookupDone || (embedLoading && embedId)) && (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 z-10 pointer-events-none">
                 <div className="w-10 h-10 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
                 <p className="text-white/50 text-sm">
-                  {!embedId ? "Finding content…" : "Starting player…"}
+                  {!imdbLookupDone ? "Finding content…" : "Starting player…"}
                 </p>
               </div>
             )}
-            {/* Only mount iframe once we have a valid IMDB ID */}
+
+            {/* IMDB lookup finished but nothing found */}
+            {imdbLookupDone && !embedId && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 z-10 text-center px-6">
+                <svg className="w-12 h-12 text-white/10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.069A1 1 0 0121 8.82v6.36a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h10a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z" />
+                </svg>
+                <p className="text-white/50 text-sm font-medium">Could not find this title in our player index</p>
+                <p className="text-white/30 text-xs max-w-sm">Try searching for it by name or check back later</p>
+              </div>
+            )}
+
+            {/* Iframe — only mount once IMDB ID is known */}
             {embedId && (
               <iframe
                 ref={iframeRef}
                 key={`${embedIdx}-${season}-${episode}-${embedId}`}
                 src={iframeUrl}
                 allowFullScreen
-                allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
-                // sandbox: blocks top-navigation hijacks and downloads
-                // allow-popups needed by some players to initialise their video loader
-                sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-presentation allow-pointer-lock allow-orientation-lock allow-modals"
-                referrerPolicy="origin"
+                allow="autoplay; encrypted-media; fullscreen; picture-in-picture; downloads"
+                sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-presentation allow-pointer-lock allow-orientation-lock allow-modals allow-downloads allow-top-navigation-by-user-activation"
+                referrerPolicy="no-referrer-when-downgrade"
                 className="w-full h-full border-0"
                 title={item.title}
                 onLoad={handleEmbedLoad}
@@ -294,8 +316,11 @@ export default function WatchModal({ item, onClose, initialSeason, initialEpisod
           {/* Embed player controls */}
           {!useDirectPlayer && (
             <>
-              {!embedId && (
+              {!embedId && !imdbLookupDone && (
                 <span className="text-white/30 text-xs animate-pulse">Finding content…</span>
+              )}
+              {!embedId && imdbLookupDone && (
+                <span className="text-white/30 text-xs">Title not found in player index</span>
               )}
               {embedId && (
                 <>

@@ -1,38 +1,51 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 
 export default function Navbar() {
   const [query, setQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
   const navigate = useNavigate();
+  const { pathname } = useLocation();
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (query.trim()) navigate(`/search?q=${encodeURIComponent(query.trim())}`);
   };
 
+  const navLink = (to: string, label: string) => {
+    const active = pathname === to || pathname.startsWith(to + "/");
+    return (
+      <Link
+        to={to}
+        className={`hidden sm:block text-sm font-medium transition-colors ${
+          active ? "text-white" : "text-white/60 hover:text-white"
+        }`}
+      >
+        {label}
+      </Link>
+    );
+  };
+
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-4 bg-gradient-to-b from-black/90 to-transparent">
-      <Link to="/" className="flex items-center gap-2">
-        <div className="w-8 h-8 bg-red-600 rounded flex items-center justify-center">
-          <svg viewBox="0 0 24 24" fill="white" className="w-5 h-5">
-            <path d="M8 5v14l11-7z" />
-          </svg>
-        </div>
-        <span className="text-white font-bold text-xl tracking-wide">Courtney's ENT</span>
-      </Link>
-
-      <div className="flex items-center gap-4">
-        <Link
-          to="/downloads"
-          className="hidden sm:flex items-center gap-1.5 text-white/70 hover:text-white text-sm font-medium transition-colors"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-          </svg>
-          Downloads
+      <div className="flex items-center gap-6">
+        <Link to="/" className="flex items-center gap-2 shrink-0">
+          <div className="w-8 h-8 bg-red-600 rounded flex items-center justify-center">
+            <svg viewBox="0 0 24 24" fill="white" className="w-5 h-5">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+          </div>
+          <span className="text-white font-bold text-xl tracking-wide">Courtney's ENT</span>
         </Link>
 
+        <div className="flex items-center gap-4">
+          {navLink("/", "Home")}
+          {navLink("/genres", "Genres")}
+          {navLink("/downloads", "Downloads")}
+        </div>
+      </div>
+
+      <div className="flex items-center gap-3">
         {showSearch ? (
           <form onSubmit={handleSearch} className="flex items-center">
             <input

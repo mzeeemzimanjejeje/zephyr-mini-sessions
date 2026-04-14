@@ -20,17 +20,12 @@ export interface FZMovieDetail {
   download_links: string[];
 }
 
-export interface FZDownloadLink {
-  label: string;
-  url: string;
-  quality?: string;
-  size?: string;
-}
-
 export interface FZDownloadResult {
   success: boolean;
-  title?: string;
-  links?: FZDownloadLink[];
+  source_url?: string;
+  meetdownload_url?: string;
+  download_url?: string;
+  filename?: string;
   error?: string;
 }
 
@@ -87,10 +82,44 @@ export function formatFZDate(dateStr: string): string {
   }
 }
 
+const KNOWN_GENRES = new Set([
+  "action", "adventure", "animation", "biography", "comedy", "crime",
+  "documentary", "drama", "family", "fantasy", "history", "horror",
+  "music", "mystery", "romance", "sci-fi", "science fiction", "sport",
+  "sports", "thriller", "war", "western", "nollywood", "bollywood",
+  "kdrama", "k-drama", "korean",
+]);
+
 export function extractGenres(categories: string[]): string[] {
-  const noise = ["Movie", "Download", "Movies", "movie", "download"];
   return categories
-    .filter(c => !noise.some(n => c.toLowerCase().includes(n.toLowerCase()) && c.split(" ").length <= 3 && /\d/.test(c) === false))
-    .filter(c => !c.match(/^\d{4}/))
+    .filter(c => {
+      const lower = c.toLowerCase().trim();
+      if (/\d{4}/.test(c)) return false;
+      if (lower.includes("download")) return false;
+      if (lower.endsWith(" movie") && !KNOWN_GENRES.has(lower.replace(" movie", ""))) return false;
+      if (lower.endsWith(" movies")) {
+        const base = lower.replace(" movies", "");
+        return KNOWN_GENRES.has(base);
+      }
+      return KNOWN_GENRES.has(lower);
+    })
+    .map(c => c.replace(/ movies$/i, "").replace(/ movie$/i, "").trim())
+    .filter((c, i, arr) => arr.indexOf(c) === i)
     .slice(0, 3);
+}
+
+export function decodeHtml(html: string): string {
+  return html
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#8220;/g, "\u201C")
+    .replace(/&#8221;/g, "\u201D")
+    .replace(/&#8216;/g, "\u2018")
+    .replace(/&#8217;/g, "\u2019")
+    .replace(/&#8211;/g, "\u2013")
+    .replace(/&#8212;/g, "\u2014")
+    .replace(/&nbsp;/g, " ");
 }

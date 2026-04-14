@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { fetchFZLatest, fetchFZSearch, formatFZDate, extractGenres, FZMovie } from "../lib/fzmovies";
+import { fetchFZLatest, fetchFZSearch, formatFZDate, extractGenres, decodeHtml, FZMovie } from "../lib/fzmovies";
 
 function MovieCard({ movie }: { movie: FZMovie }) {
   const genres = extractGenres(movie.categories);
@@ -37,7 +37,7 @@ function MovieCard({ movie }: { movie: FZMovie }) {
 
         {movie.description && (
           <p className="text-white/40 text-xs line-clamp-3 leading-relaxed mt-1">
-            {movie.description}
+            {decodeHtml(movie.description)}
           </p>
         )}
 
